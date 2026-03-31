@@ -7,7 +7,7 @@ from functools import wraps
 APP_SECRET = os.environ.get("APP_SECRET", "changeme")
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS_HASH = os.environ.get("ADMIN_PASS_HASH")
-ADMIN_PASS = os.environ.get("ADMIN_PASS")
+ADMIN_PASS = os.environ.get("2025En#")
 
 app = Flask(__name__)
 app.secret_key = APP_SECRET
