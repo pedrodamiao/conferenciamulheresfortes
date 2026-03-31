@@ -14,22 +14,51 @@
       background-color: #f2e9ea; /* fundo solicitado */
     }
     h1 {
+      display: flex;
+      justify-content: center;
+      align-items: center;
       text-align: center;
       margin-bottom: 1rem;
-      color: #004b6b;
+      color: #5f634a;
+      flex-wrap: wrap;
     }
+    h1 img {
+      width: 100%;
+      height: auto;
+      vertical-align: middle;
+    }
+    
     form { margin-top: 1rem; }
+    
     fieldset.slot {
       margin: 1.25em 0;
       padding: 1em;
-      border: 2px solid #ccc;
+      border: 2px solid #731240;
       border-radius: 10px;
-      background: #fff;
+      background: #a8ac8c;
+      color: #f2e9ea;
     }
-    legend { font-weight: bold; color: #333; }
-    label { display: block; margin-bottom: .45em; }
+    
+    legend { 
+      font-weight: bold; color: #731240;
+    }
+
+    /* Textos “Nome completo”, “E-mail” e “Escolha abaixo...” */ 
+    label, 
+    p strong { 
+      color: #731240; 
+    } 
+    
+    .oficinas label { 
+      display: block; 
+      margin-bottom: 0.5em; 
+    }
+    
+    /* label { display: block; margin-bottom: .45em; } */
+    
     label.bloqueada { color: #888; }
     label.bloqueada small { color: #aaa; }
+    
     .flash {
       padding: 1em;
       border-radius: 6px;
@@ -45,15 +74,22 @@
       color: #060;
       border: 1px solid #9c9;
     }
-    input[type="text"], input[type="email"] {
-      width: 100%;
+    
+    input[type="text"], 
+    input[type="email"] {
+      width: 98%;
       padding: .6em;
       border: 1px solid #bbb;
       border-radius: 6px;
       margin-top: .25em;
     }
+
+    input[type="radio"] { 
+      accent-color: #731240; 
+    }
+    
     button {
-      background: #0074a6;
+      background: #731240;
       color: #fff;
       border: none;
       padding: .75em 1.5em;
@@ -62,12 +98,14 @@
       cursor: pointer;
       margin-top: 1rem;
     }
-    button:hover { background: #005c83; }
-    small.muted { color: #666; }
+    
+    button:hover { background: #5a0f33; }
+    
+    small.muted { color: #5f5f5f; }
   </style>
 </head>
 <body>
-  <h1>Inscrição nas Oficinas</h1>
+  <h1><img src="{{ url_for('static', filename='capa-site.png') }}" alt="Logo da Conferência"></h1>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -77,16 +115,17 @@
     {% endif %}
   {% endwith %}
 
-  <form method="post" action="{{ url_for('inscrever') }}">
-    <label>Nome completo:
-      <input type="text" name="full_name" required>
-    </label>
-
-    <label style="margin-top:.6em;">E-mail:
-      <input type="email" name="email" required>
-    </label>
-
-    <p><strong>Escolha até 4 oficinas (máximo 1 por horário e sem repetir):</strong></p>
+  <form method="post" action="{{ url_for('inscrever') }}"> 
+    <label><strong>Nome completo:</strong> 
+      <input type="text" name="full_name" required> 
+    </label> 
+    <p></p> 
+    <label style="margin-top:.6em;"><strong>E-mail:</strong> 
+      <input type="email" name="email" required> 
+    </label> 
+    
+    <p><strong>Escolha abaixo as oficinas que você deseja participar.<br> 
+    (no máximo uma por horário e sem repetir a mesma oficina em horários distintos)</strong></p>
 
     {% for slot in slots %}
       <fieldset class="slot">
@@ -156,11 +195,10 @@
         if (checked) list.forEach(r => { if (r !== checked) r.disabled = true; });
       });
 
-      // Verifica quantas foram escolhidas
-      const chosenCount = Array.from(document.querySelectorAll('input[type="radio"][name^="slot_"]:checked'))
-                               .filter(r => r.value).length;
-      const submitBtn = document.getElementById('submitBtn');
-      submitBtn.disabled = !(chosenCount >= 1 && chosenCount <= 4);
+      // Habilita o submit se nº de escolhas (com valor) ∈ [1,4] 
+      const chosenCount = Array.from(document.querySelectorAll('input[type="radio"][name^="slot_"]:checked')) 
+        .filter(r => r.value).length; const submitBtn = document.getElementById('submitBtn'); 
+      submitBtn.disabled = !(chosenCount >= 1 && chosenCount <= 4); 
     }
 
     document.addEventListener('DOMContentLoaded', updateSlots);
