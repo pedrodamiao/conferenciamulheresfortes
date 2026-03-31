@@ -8,12 +8,12 @@ from datetime import datetime as dt, timedelta
 # =========================
 # Configurações principais
 # =========================
-APP_SECRET     = os.environ.get("APP_SECRET", "changeme")
-ADMIN_USER     = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASS_HASH= os.environ.get("ADMIN_PASS_HASH")
-ADMIN_PASS     = os.environ.get("ADMIN_PASS")
-DB_PATH        = os.environ.get("DB_PATH", "inscricoes.db")
-FALLBACK_DB    = "inscricoes.db"
+APP_SECRET      = os.environ.get("APP_SECRET", "changeme")
+ADMIN_USER      = os.environ.get("ADMIN_USER", "admin")
+ADMIN_PASS_HASH = os.environ.get("ADMIN_PASS_HASH")
+ADMIN_PASS      = os.environ.get("ADMIN_PASS")
+DB_PATH         = os.environ.get("DB_PATH", "inscricoes.db")
+FALLBACK_DB     = "inscricoes.db"
 
 PER_SLOT_CAPACITY = 40  # vagas por horário/oficina
 
@@ -79,6 +79,7 @@ def init_db():
         );
         """)
 
+        # Seed workshops
         cur.execute("SELECT COUNT(*) c FROM workshops")
         if cur.fetchone()["c"] == 0:
             names = [
@@ -91,21 +92,31 @@ def init_db():
                 "FORTALECENDO-SE NO PODER DO ESPÍRITO",
             ]
             for n in names:
-                cur.execute("INSERT INTO workshops(name, capacity, registered) VALUES (?, ?, 0)", (n, PER_SLOT_CAPACITY))
+                cur.execute(
+                    "INSERT INTO workshops(name, capacity, registered) VALUES (?, ?, 0)",
+                    (n, PER_SLOT_CAPACITY)
+                )
 
-        # Cria workshop_slots (por horário)
+        # Seed workshop_slots com base nos bloqueios por horário
         ws = cur.execute("SELECT id, name FROM workshops").fetchall()
         id2name = {w["id"]: w["name"] for w in ws}
-        existing = set((r["workshop_id"], r["slot_id"]) for r in cur.execute("SELECT workshop_id, slot_id FROM workshop_slots"))
+        existing = set((r["workshop_id"], r["slot_id"]) for r in cur.execute(
+            "SELECT workshop_id, slot_id FROM workshop_slots"
+        ))
         for slot in SLOTS:
+            bloqueadas = set(slot["bloqueadas"])
             for wid, wname in id2name.items():
-                if wname in slot["bloqueadas"]: 
+                if wname in bloqueadas:
                     continue
                 if (wid, slot["id"]) not in existing:
                     cur.execute(
                         "INSERT INTO workshop_slots(workshop_id, slot_id, capacity, registered) VALUES (?, ?, ?, 0)",
                         (wid, slot["id"], PER_SLOT_CAPACITY)
                     )
+
+        # Mantém a capacidade por slot consistente
+        cur.execute("UPDATE workshop_slots SET capacity = ? WHERE capacity <> ?", (PER_SLOT_CAPACITY, PER_SLOT_CAPACITY))
+
         conn.commit()
 
 # =========================
@@ -146,21 +157,28 @@ def index():
         workshops = conn.execute("SELECT * FROM workshops ORDER BY id").fetchall()
         slot_rows = conn.execute("SELECT workshop_id, slot_id, capacity, registered FROM workshop_slots").fetchall()
 
+    # avail[slot_id][workshop_id] = {capacity, registered, remaining}
     avail = {}
     for r in slot_rows:
         sid, wid = int(r["slot_id"]), int(r["workshop_id"])
         cap, reg = int(r["capacity"]), int(r["registered"])
-        avail.setdefault(sid, {})[wid] = {"capacity": cap, "registered": reg, "remaining": max(0, cap - reg)}
+        avail.setdefault(sid, {})[wid] = {
+            "capacity": cap,
+            "registered": reg,
+            "remaining": max(0, cap - reg),
+        }
 
     return render_template("index.html", workshops=workshops, slots=SLOTS, avail=avail)
 
 @app.route("/inscrever", methods=["POST"])
 def inscrever():
-    full_name = request.form.get("full_name", "").strip()
-    email = request.form.get("email", "").strip().lower()
-    consent = request.form.get("consent") == "on"
+    full_name = (request.form.get("full_name") or "").strip()
+    email     = (request.form.get("email") or "").strip().lower()
+    consent   = request.form.get("consent") == "on"
 
-    selected_per_slot, chosen_ids = {}, []
+    # coleta escolhas por slot
+    selected_per_slot = {}
+    chosen_ids = []
     for slot in SLOTS:
         val = request.form.get(f"slot_{slot['id']}")
         if val:
@@ -168,6 +186,7 @@ def inscrever():
             selected_per_slot[slot["id"]] = wid
             chosen_ids.append(wid)
 
+    # validações
     if not consent:
         flash("Você precisa autorizar o uso dos dados.", "error")
         return redirect(url_for("index"))
@@ -181,22 +200,44 @@ def inscrever():
         flash("Escolha no máximo 4 oficinas e sem repetir.", "error")
         return redirect(url_for("index"))
 
+    # valida bloqueios por horário
+    with closing(get_db()) as conn:
+        ws = conn.execute("SELECT id, name FROM workshops").fetchall()
+        id_to_name = {r["id"]: r["name"] for r in ws}
+    for slot in SLOTS:
+        wid = selected_per_slot.get(slot["id"])
+        if wid and id_to_name.get(wid) in slot["bloqueadas"]:
+            flash(f"A oficina '{id_to_name[wid]}' não está disponível às {slot['hora']}.", "error")
+            return redirect(url_for("index"))
+
+    # reserva
     conn = get_db()
     try:
         conn.execute("BEGIN IMMEDIATE")
         cur = conn.cursor()
+
+        # e-mail único
         if cur.execute("SELECT 1 FROM attendees WHERE email=?", (email,)).fetchone():
             conn.execute("ROLLBACK")
             flash("E-mail já inscrito.", "error")
             return redirect(url_for("index"))
 
+        # checa e reserva por (workshop_id, slot_id)
         for sid, wid in selected_per_slot.items():
-            row = cur.execute("SELECT capacity, registered FROM workshop_slots WHERE workshop_id=? AND slot_id=?", (wid, sid)).fetchone()
+            row = cur.execute(
+                "SELECT capacity, registered FROM workshop_slots WHERE workshop_id=? AND slot_id=?",
+                (wid, sid)
+            ).fetchone()
             if not row or row["registered"] >= row["capacity"]:
                 conn.execute("ROLLBACK")
-                flash("Uma das oficinas atingiu o limite.", "error")
+                flash("Uma das oficinas atingiu o limite neste horário.", "error")
                 return redirect(url_for("index"))
-            cur.execute("UPDATE workshop_slots SET registered = registered + 1 WHERE workshop_id=? AND slot_id=?", (wid, sid))
+            cur.execute(
+                "UPDATE workshop_slots SET registered = registered + 1 WHERE workshop_id=? AND slot_id=?",
+                (wid, sid)
+            )
+
+        # mantém contador geral por oficina (não usado no admin para total, mas mantemos)
         for wid in chosen_ids:
             cur.execute("UPDATE workshops SET registered = registered + 1 WHERE id=?", (wid,))
 
@@ -205,11 +246,15 @@ def inscrever():
             "INSERT INTO attendees(full_name,email,selections,selections_map,created_at) VALUES(?,?,?,?,?)",
             (full_name, email, json.dumps(chosen_ids), json.dumps(selected_per_slot), now_iso)
         )
+
         conn.execute("COMMIT")
         return redirect(url_for("sucesso"))
     except Exception:
-        conn.execute("ROLLBACK")
-        flash("Erro ao salvar inscrição.", "error")
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            pass
+        flash("Erro ao salvar inscrição. Tente novamente.", "error")
         return redirect(url_for("index"))
     finally:
         conn.close()
@@ -223,15 +268,16 @@ def sucesso():
 # =========================
 @app.route("/login", methods=["GET","POST"])
 def login():
+    error = None
     if request.method == "POST":
-        user = request.form.get("username","").strip()
-        pwd  = request.form.get("password","")
+        user = (request.form.get("username") or "").strip()
+        pwd  = (request.form.get("password") or "")
         if user != ADMIN_USER or not ADMIN_PASS_HASH or not check_password_hash(ADMIN_PASS_HASH, pwd):
-            flash("Usuário ou senha inválidos.", "error")
+            error = "Usuário ou senha inválidos."
         else:
             session["admin_logged"] = True
             return redirect(request.args.get("next") or url_for("admin"))
-    return render_template("login.html")
+    return render_template("login.html", error=error)
 
 @app.route("/logout")
 @login_required
@@ -243,14 +289,21 @@ def logout():
 @app.route("/admin")
 @login_required
 def admin():
+    # capacidade total por oficina = soma dos slots; inscritos = recontados de attendees
     with closing(get_db()) as conn:
         cap_rows = conn.execute("""
-            SELECT w.id AS wid, w.name AS name, COALESCE(SUM(ws.capacity),0) AS cap_total
+            SELECT w.id AS wid, w.name AS name,
+                   COALESCE(SUM(ws.capacity),0) AS cap_total
             FROM workshops w
             LEFT JOIN workshop_slots ws ON ws.workshop_id = w.id
-            GROUP BY w.id, w.name ORDER BY w.id
+            GROUP BY w.id, w.name
+            ORDER BY w.id
         """).fetchall()
-        at_rows = conn.execute("SELECT id, full_name, email, selections, selections_map, created_at FROM attendees ORDER BY created_at DESC").fetchall()
+        at_rows = conn.execute("""
+            SELECT id, full_name, email, selections, selections_map, created_at
+            FROM attendees
+            ORDER BY created_at DESC
+        """).fetchall()
 
     cap_by_wid  = {int(r["wid"]): int(r["cap_total"]) for r in cap_rows}
     name_by_wid = {int(r["wid"]): r["name"] for r in cap_rows}
@@ -258,35 +311,51 @@ def admin():
     reg_by_wid = {wid: 0 for wid in cap_by_wid.keys()}
     for a in at_rows:
         try:
-            for wid in json.loads(a["selections"]) or []:
-                reg_by_wid[int(wid)] = reg_by_wid.get(int(wid), 0) + 1
+            sel = json.loads(a["selections"]) if a["selections"] else []
+            if isinstance(sel, list):
+                for wid_raw in sel:
+                    wid = int(wid_raw)
+                    if wid in reg_by_wid:
+                        reg_by_wid[wid] += 1
         except Exception:
             pass
 
-    workshops_view = [{
-        "id": wid,
-        "name": name_by_wid[wid],
-        "capacity_total": cap_by_wid[wid],
-        "registered_total": reg_by_wid[wid],
-        "remaining_total": max(0, cap_by_wid[wid] - reg_by_wid[wid])
-    } for wid in sorted(cap_by_wid)]
+    workshops_view = []
+    for wid in sorted(cap_by_wid.keys()):
+        cap_total = cap_by_wid[wid]
+        reg_total = reg_by_wid.get(wid, 0)
+        workshops_view.append({
+            "id": wid,
+            "name": name_by_wid.get(wid, f"ID {wid}"),
+            "capacity_total": cap_total,
+            "registered_total": reg_total,
+            "remaining_total": max(0, cap_total - reg_total),
+        })
 
     parsed_attendees = []
     for a in at_rows:
         try:
             utc_dt = dt.fromisoformat(a["created_at"])
-            created_local = (utc_dt - timedelta(hours=3)).strftime("%d/%m/%Y %H:%M")
+            local_dt = utc_dt - timedelta(hours=3)  # GMT-3
+            created_local = local_dt.strftime("%d/%m/%Y %H:%M")
         except Exception:
             created_local = a["created_at"]
+        try:
+            sels = json.loads(a["selections"]) or []
+        except Exception:
+            sels = []
         parsed_attendees.append({
             "id": a["id"],
             "full_name": a["full_name"],
             "email": a["email"],
-            "selections": json.loads(a["selections"]) if a["selections"] else [],
-            "created_at_local": created_local
+            "selections": sels,
+            "created_at_local": created_local,
         })
 
-    return render_template("admin.html", workshops=workshops_view, attendees=parsed_attendees, csrf_token=_get_csrf_token())
+    return render_template("admin.html",
+                           workshops=workshops_view,
+                           attendees=parsed_attendees,
+                           csrf_token=_get_csrf_token())
 
 # =========================
 # Excluir inscrição individual
@@ -294,51 +363,68 @@ def admin():
 @app.post("/admin/attendee/<int:att_id>/delete")
 @login_required
 def delete_attendee(att_id):
-    token = request.form.get("_csrf_token") or ""
-    if token != session.get("_csrf_token"):
-        flash("CSRF inválido. Recarregue a página.", "error")
+    form_tok = request.form.get("_csrf_token") or ""
+    if not form_tok or form_tok != session.get("_csrf_token"):
+        flash("Falha de validação (CSRF). Recarregue a página e tente novamente.", "error")
         return redirect(url_for("admin"))
 
     conn = get_db()
     try:
         conn.execute("BEGIN IMMEDIATE")
         cur = conn.cursor()
-        row = cur.execute("SELECT selections, selections_map FROM attendees WHERE id=?", (att_id,)).fetchone()
+
+        row = cur.execute("""
+            SELECT id, selections, selections_map
+            FROM attendees
+            WHERE id = ?
+        """, (att_id,)).fetchone()
+
         if not row:
             conn.execute("ROLLBACK")
             flash("Inscrição não encontrada.", "error")
             return redirect(url_for("admin"))
 
-        sel_list = json.loads(row["selections"]) if row["selections"] else []
-        sel_map  = json.loads(row["selections_map"]) if row["selections_map"] else {}
+        # devolve vagas por (workshop_id, slot_id)
+        try:
+            sel_list = json.loads(row["selections"]) if row["selections"] else []
+        except Exception:
+            sel_list = []
+        try:
+            sel_map = json.loads(row["selections_map"]) if row["selections_map"] else {}
+        except Exception:
+            sel_map = {}
 
-        for sid_raw, wid_raw in sel_map.items():
-            try:
-                sid, wid = int(sid_raw), int(wid_raw)
+        if isinstance(sel_map, dict):
+            for sid_raw, wid_raw in sel_map.items():
+                try:
+                    sid = int(sid_raw); wid = int(wid_raw)
+                except Exception:
+                    continue
                 cur.execute("""
                     UPDATE workshop_slots
-                    SET registered = CASE WHEN registered > 0 THEN registered - 1 ELSE 0 END
-                    WHERE workshop_id=? AND slot_id=?
+                       SET registered = CASE WHEN registered > 0 THEN registered - 1 ELSE 0 END
+                     WHERE workshop_id = ? AND slot_id = ?
                 """, (wid, sid))
-            except Exception:
-                pass
-        for wid_raw in set(sel_list):
-            try:
-                wid = int(wid_raw)
+
+        if isinstance(sel_list, list):
+            for wid_raw in set(sel_list):
+                try:
+                    wid = int(wid_raw)
+                except Exception:
+                    continue
                 cur.execute("""
                     UPDATE workshops
-                    SET registered = CASE WHEN registered > 0 THEN registered - 1 ELSE 0 END
-                    WHERE id=?
+                       SET registered = CASE WHEN registered > 0 THEN registered - 1 ELSE 0 END
+                     WHERE id = ?
                 """, (wid,))
-            except Exception:
-                pass
 
-        cur.execute("DELETE FROM attendees WHERE id=?", (att_id,))
+        cur.execute("DELETE FROM attendees WHERE id = ?", (att_id,))
         conn.execute("COMMIT")
         flash("Inscrição excluída com sucesso.", "message")
     except Exception:
-        conn.execute("ROLLBACK")
-        flash("Erro ao excluir inscrição.", "error")
+        try: conn.execute("ROLLBACK")
+        except Exception: pass
+        flash("Erro ao excluir a inscrição.", "error")
     finally:
         conn.close()
 
@@ -351,79 +437,110 @@ def delete_attendee(att_id):
 @login_required
 def admin_reset():
     tok = request.form.get("_csrf_token") or ""
-    if tok != session.get("_csrf_token"):
-        flash("Falha CSRF. Recarregue a página.", "error")
+    if not tok or tok != session.get("_csrf_token"):
+        flash("Falha de validação (CSRF). Recarregue a página.", "error")
         return redirect(url_for("admin"))
     with closing(get_db()) as conn:
         cur = conn.cursor()
         cur.execute("DELETE FROM attendees")
-        cur.execute("UPDATE workshops SET registered=0")
-        cur.execute("UPDATE workshop_slots SET registered=0")
+        cur.execute("UPDATE workshops SET registered = 0")
+        cur.execute("UPDATE workshop_slots SET registered = 0")
         conn.commit()
-    flash("Base resetada com sucesso.", "message")
+    flash("Base resetada com sucesso: inscrições removidas e contadores zerados.", "message")
     return redirect(url_for("admin"))
 
 # =========================
-# Relatórios e exports
+# Relatórios (tela) – matriz por pessoa
 # =========================
-def _workshop_map(conn):
-    return {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM workshops")}
-
-def build_reports():
-    with closing(get_db()) as conn:
-        id2name = _workshop_map(conn)
-        attendees = conn.execute("SELECT selections,selections_map FROM attendees").fetchall()
-    by_workshop = {wid: {"name": name, "count": 0} for wid, name in id2name.items()}
-    by_slot = {s["id"]: {"hora": s["hora"], "items": {wid: {"name": n, "count": 0} for wid, n in id2name.items()}} for s in SLOTS}
-
-    for a in attendees:
-        try:
-            for wid in json.loads(a["selections"]) or []:
-                by_workshop[int(wid)]["count"] += 1
-        except Exception:
-            pass
-        try:
-            sel_map = json.loads(a["selections_map"]) if a["selections_map"] else {}
-            for sid_raw, wid_raw in sel_map.items():
-                sid, wid = int(sid_raw), int(wid_raw)
-                by_slot[sid]["items"][wid]["count"] += 1
-        except Exception:
-            pass
-    return by_workshop, by_slot
-
 @app.route("/reports")
 @login_required
 def reports():
-    by_workshop, by_slot = build_reports()
-    ws_sorted = sorted(by_workshop.items(), key=lambda kv: kv[1]["name"])
-    slots_view = []
-    for s in SLOTS:
-        sid = s["id"]
-        items = by_slot[sid]["items"]
-        rows = sorted(items.items(), key=lambda kv: kv[1]["name"])
-        slots_view.append({"id": sid, "hora": s["hora"], "rows": rows})
-    return render_template("reports.html", ws=ws_sorted, slots=slots_view)
+    # Matriz: 1 linha por pessoa; colunas por horário
+    with closing(get_db()) as conn:
+        attendees = conn.execute(
+            "SELECT full_name, email, selections_map FROM attendees ORDER BY full_name"
+        ).fetchall()
+        wmap = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM workshops")}
+    people = []
+    for a in attendees:
+        try:
+            sel_map = json.loads(a["selections_map"]) if a["selections_map"] else {}
+        except Exception:
+            sel_map = {}
+        row = {"full_name": a["full_name"], "email": a["email"]}
+        for s in SLOTS:
+            sid = s["id"]
+            wid = sel_map.get(str(sid))
+            if wid is None:
+                wid = sel_map.get(sid)  # caso salvo como int
+            row[f"slot_{sid}"] = wmap.get(int(wid), "") if wid else ""
+        people.append(row)
+    return render_template("reports.html", slots=SLOTS, people=people)
 
+# =========================
+# Export CSV – Opção B (Oficina | Horário | Nome | E-mail)
+# =========================
 @app.route("/export_names_rows_by_workshop_slot.csv")
 @login_required
 def export_names_rows_by_workshop_slot_csv():
+    # Cada linha: Oficina | Horário | Nome | E-mail
     with closing(get_db()) as conn:
-        ws = conn.execute("SELECT id,name FROM workshops ORDER BY name").fetchall()
-        attendees = conn.execute("SELECT full_name,email,selections,selections_map FROM attendees ORDER BY full_name").fetchall()
-    id2name = {r["id"]: r["name"] for r in ws}
+        ws = conn.execute("SELECT id, name FROM workshops ORDER BY name").fetchall()
+        attendees = conn.execute(
+            "SELECT full_name, email, selections, selections_map FROM attendees ORDER BY full_name"
+        ).fetchall()
+
+    id2name = {int(r["id"]): r["name"] for r in ws}
     slot_hour = {s["id"]: s["hora"] for s in SLOTS}
+
     rows = []
     for a in attendees:
-        sel_list = json.loads(a["selections"]) if a["selections"] else []
-        sel_map = json.loads(a["selections_map"]) if a["selections_map"] else {}
-        wid_to_slot = {int(v): int(k) for k, v in sel_map.items()} if isinstance(sel_map, dict) else {}
-        for wid in sel_list:
+        try:
+            sel_list = json.loads(a["selections"]) if a["selections"] else []
+        except Exception:
+            sel_list = []
+        try:
+            sel_map = json.loads(a["selections_map"]) if a["selections_map"] else {}
+        except Exception:
+            sel_map = {}
+
+        # Map (workshop -> slot escolhido por essa pessoa)
+        wid_to_slot = {}
+        if isinstance(sel_map, dict):
+            for sid_raw, wid_raw in sel_map.items():
+                try:
+                    sid_i = int(sid_raw); wid_i = int(wid_raw)
+                    wid_to_slot[wid_i] = sid_i
+                except Exception:
+                    pass
+
+        for wid_raw in sel_list or []:
+            try:
+                wid = int(wid_raw)
+            except Exception:
+                continue
             wname = id2name.get(wid, f"ID {wid}")
             sid = wid_to_slot.get(wid)
             hora = slot_hour.get(sid, "")
             rows.append((wname, hora, a["full_name"], a["email"]))
+
+    # Ordena por Oficina, Horário, Nome
     rows.sort(key=lambda r: (r[0].lower(), r[1], r[2].lower()))
+
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Oficina", "Horário", "Nome", "E-mail"])
-    for
+    for r in rows:
+        writer.writerow(r)
+
+    mem = io.BytesIO(output.getvalue().encode("utf-8")); mem.seek(0)
+    resp = make_response(mem.read())
+    resp.headers["Content-Type"] = "text/csv; charset=utf-8"
+    resp.headers["Content-Disposition"] = "attachment; filename=nomes_por_oficina_e_horario_linha_a_linha.csv"
+    return resp
+
+# =========================
+# Execução local
+# =========================
+if __name__ == "__main__":
+    app.run(debug=True)
