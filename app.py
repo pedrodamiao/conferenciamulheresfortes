@@ -44,13 +44,13 @@ def init_db():
         cur.execute("SELECT COUNT(*) FROM workshops")
         if cur.fetchone()[0] == 0:
             names = [
-                "TRANSFORMANDO COMPORTAMENTOS DESTRUTIVOS",
+                "REGULANDO AS EMOÇÕES",
                 "RAÍZES QUE PRECISAM SER ARRANCADAS",
-                "VENCENDO AS MENTIRAS COM A VERDADE",
-                "CUIDANDO DO CORPO ONDE O ESPÍRITO HABITA",
-                "DOMINANDO AS EMOÇÕES PARA QUE O ESPÍRITO SANTO GOVERNE",
-                "DA FRAQUEZA À VITÓRIA: TORNANDO-SE FORTE NA PALAVRA",
-                "FORTALECENDO-SE NO PODER DO ESPÍRITO",
+                "VENCENDO A MENTIRA COM A VERDADE",
+                "COMO SE FORTALECER ESPIRITUALMENTE",
+                "COMO VENCER A AUTOSSABOTAGEM",
+                "COMO CUIDAR DO CORPO",
+                "FORTALECIDA NA PALAVRA",
             ]
 
             for n in names:
@@ -89,10 +89,10 @@ def index():
     cur = conn.cursor()
 
     slots = [
-        {"id": 1, "hora": "14h", "bloqueadas": ["FORTALECENDO-SE NO PODER DO ESPÍRITO"]},
-        {"id": 2, "hora": "15:50h", "bloqueadas": ["TRANSFORMANDO COMPORTAMENTOS DESTRUTIVOS", "VENCENDO AS MENTIRAS COM A VERDADE"]},
-        {"id": 3, "hora": "19h", "bloqueadas": ["CUIDANDO DO CORPO ONDE O ESPÍRITO HABITA", "DA FRAQUEZA À VITÓRIA: TORNANDO-SE FORTE NA PALAVRA"]},
-        {"id": 4, "hora": "20:50h", "bloqueadas": ["RAÍZES QUE PRECISAM SER ARRANCADAS", "DOMINANDO AS EMOÇÕES PARA QUE O ESPÍRITO SANTO GOVERNE"]},
+        {"id": 1, "hora": "14h", "bloqueadas": ["COMO SE FORTALECER ESPIRITUALMENTE", "FORTALECIDA NA PALAVRA"]},
+        {"id": 2, "hora": "15:50h", "bloqueadas": ["VENCENDO A MENTIRA COM A VERDADE", "COMO CUIDAR DO CORPO"]},
+        {"id": 3, "hora": "19h", "bloqueadas": ["RAÍZES QUE PRECISAM SER ARRANCADAS"]},
+        {"id": 4, "hora": "20:50h", "bloqueadas": ["REGULANDO AS EMOÇÕES", "COMO VENCER A AUTOSSABOTAGEM"]},
     ]
 
     cur.execute("SELECT * FROM workshops")
