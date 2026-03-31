@@ -11,7 +11,7 @@
       max-width: 860px;
       color: #222;
       padding: 0 1rem;
-      background-color: #f2e9ea; /* fundo solicitado */
+      background-color: #f2e9ea;
     }
     h1 {
       display: flex;
@@ -105,7 +105,7 @@
   </style>
 </head>
 <body>
-  <h1><img src="{{ url_for('static', filename='capa-site.png') }}" alt="Logo da Conferência"></h1>
+  <h1><img src="{{ url_for('static', filename='logo.png') }}" alt="Logo da Conferência"></h1>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
