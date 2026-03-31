@@ -172,7 +172,7 @@ def inscrever():
 def login():
     error = None
     if request.method == "POST":
-        if request.form["username"] == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, request.form["2025En#"]):
+        if request.form["username"] == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, request.form["password"]):
             session["admin_logged"] = True
             return redirect(url_for("admin"))
         error = "Login inválido"
