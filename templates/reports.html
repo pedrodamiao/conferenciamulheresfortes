@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Relatórios</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{
+      --brand:#731240;
+      --brand-hover:#5a0f33;
+      --text:#222;
+      --muted:#666;
+      --border:#ddd;
+      --bg:#f2e9ea;
+      --thead:#731240;
+      --thead-tx:#fff;
+      --card:#ffffff;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+      max-width:1200px;margin:2rem auto;padding:0 1rem;
+      background:var(--bg);color:var(--text);
+    }
+    .top{
+      display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem
+    }
+    h1{
+      color:var(--brand);margin:.2rem 0 .8rem;font-size:1.8rem
+    }
+    .spacer{flex:1}
+    a.btn{
+      display:inline-block;background:var(--brand);color:#fff;text-decoration:none;
+      padding:.6rem .9rem;border-radius:6px;border:none;cursor:pointer
+    }
+    a.btn:hover{background:var(--brand-hover)}
+    table{
+      width:100%;border-collapse:collapse;margin:1rem 0 2rem;background:var(--card);
+      box-shadow:0 2px 8px rgba(0,0,0,.06)
+    }
+    th,td{
+      border:1px solid var(--border);padding:.55rem .6rem;vertical-align:top;text-align:left
+    }
+    th{background:var(--thead);color:var(--thead-tx);font-weight:600}
+    tr:nth-child(even) td{background:#fafafa}
+    .nowrap{white-space:nowrap}
+    .muted{color:var(--muted)}
+    .count{text-align:center;width:3rem}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <h1>Relatórios</h1>
+    <div class="spacer"></div>
+    <a class="btn" href="{{ url_for('admin') }}">Voltar</a>
+    <a class="btn" href="{{ url_for('export_names_rows_by_workshop_slot_csv') }}">Exportar (Oficina | Horário | Nome | E-mail)</a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="count">#</th>
+        <th>Nome</th>
+        <th class="nowrap">E-mail</th>
+        {% for slot in slots %}
+          <th class="nowrap">{{ loop.index }}º Horário — {{ slot.hora }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% if people and people|length > 0 %}
+        {% for p in people %}
+          <tr>
+            <td class="count">{{ loop.index }}</td>
+            <td>{{ p.full_name }}</td>
+            <td class="nowrap">{{ p.email }}</td>
+            {% for slot in slots %}
+              <td>{{ p['slot_' ~ slot.id] }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="{{ 3 + slots|length }}"><em class="muted">Nenhuma inscrição encontrada.</em></td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  {% if people and people|length > 0 %}
+    <p><strong>Total de inscritos:</strong> {{ people|length }}</p>
+  {% endif %}
+</body>
+</html>

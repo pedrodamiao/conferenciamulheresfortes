@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Painel de Inscrições</title>
+  <style>
+    :root{
+      --brand:#731240;
+      --brand-hover:#5a0f33;
+      --text:#222;
+      --bg:#f2e9ea;
+      --thead:#731240;
+      --thead-tx:#fff;
+      --btn:#731240;
+      --btn-hover:#5a0f33;
+      --danger:#c62828;
+      --danger-hover:#9f1f1f;
+      --border:#ddd;
+      --card:#ffffff;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      margin:0;
+      padding:2rem 1rem;
+    }
+    .wrap{max-width:1200px;margin:0 auto}
+    .header{
+      display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:1.2rem
+    }
+    h1{
+      margin:.2rem 0 .8rem;
+      font-size:1.8rem;
+      color:var(--brand);
+    }
+    .btns-right{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:flex-end}
+    a.btn,button.btn{
+      display:inline-block;background:var(--btn);color:#fff;text-decoration:none;
+      padding:.55rem .9rem;border-radius:6px;border:none;cursor:pointer;font:inherit
+    }
+    a.btn:hover,button.btn:hover{background:var(--btn-hover)}
+    .btn-danger{background:var(--danger)}
+    .btn-danger:hover{background:var(--danger-hover)}
+    .msg{
+      margin-bottom:1rem;padding:.6rem .8rem;border-radius:6px;border:1px solid transparent
+    }
+    .msg.error{background:#ffe0e0;border-color:#f99;color:#a00}
+    .msg.message{background:#e0f8e0;border-color:#9c9;color:#060}
+    table{
+      width:100%;border-collapse:collapse;margin:1rem 0 2rem;background:var(--card);
+      box-shadow:0 2px 8px rgba(0,0,0,.06)
+    }
+    th,td{border:1px solid var(--border);padding:.6rem .65rem;text-align:left;vertical-align:top}
+    th{background:var(--thead);color:var(--thead-tx)}
+    tr:nth-child(even) td{background:#fafafa}
+    .nowrap{white-space:nowrap}
+    form.inline{display:inline}
+    .footer{
+      margin-top:2rem;
+      padding-top:1.2rem;
+      border-top:2px solid var(--brand);
+      text-align:center;
+    }
+    .total{
+      font-size:1.1rem;
+      font-weight:600;
+      color:var(--brand);
+      margin-bottom:.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>Painel de Inscrições</h1>
+      <div class="btns-right">
+        <a class="btn" href="{{ url_for('reports') }}">Relatórios</a>
+        <a class="btn" href="{{ url_for('logout') }}">Sair</a>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="msg {{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <h2 style="color:var(--brand);margin:.2rem 0 .6rem">Oficinas</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nome da Oficina</th>
+          <th class="nowrap">Capacidade (total)</th>
+          <th class="nowrap">Inscritos (total)</th>
+          <th class="nowrap">Vagas Restantes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in workshops %}
+          <tr>
+            <td>{{ w.id }}</td>
+            <td>{{ w.name }}</td>
+            <td class="nowrap">{{ w.capacity_total }}</td>
+            <td class="nowrap">{{ w.registered_total }}</td>
+            <td class="nowrap">{{ w.remaining_total }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2 style="color:var(--brand);margin:.2rem 0 .6rem">Inscritos <span style="font-size:.9rem;opacity:.8">(Data/Hora GMT-3)</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th class="nowrap">E-mail</th>
+          <th>Escolhas (IDs)</th>
+          <th class="nowrap">Data</th>
+          <th class="nowrap">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if attendees and attendees|length > 0 %}
+          {% for a in attendees %}
+            <tr>
+              <td>{{ a.full_name }}</td>
+              <td class="nowrap">{{ a.email }}</td>
+              <td>
+                {% if a.selections and a.selections|length > 0 %}
+                  {{ a.selections|join(", ") }}
+                {% else %}
+                  <em>—</em>
+                {% endif %}
+              </td>
+              <td class="nowrap">{{ a.created_at_local }}</td>
+              <td class="nowrap">
+                <form class="inline" method="post" action="{{ url_for('delete_attendee', att_id=a.id) }}"
+                      onsubmit="return confirm('Excluir a inscrição de {{ a.full_name }}?');">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn btn-danger">Excluir</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="5"><em>Nenhuma inscrição até o momento.</em></td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <div class="total">Total de inscritos: {{ total_attendees }}</div>
+
+      <form method="post" action="{{ url_for('admin_reset') }}"
+            onsubmit="return confirm('⚠️ Isso vai apagar TODAS as inscrições e zerar os contadores. Tem certeza?');">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-danger">Resetar Base</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
