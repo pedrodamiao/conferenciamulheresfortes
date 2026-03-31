@@ -129,7 +129,7 @@
 
     {% for slot in slots %}
       <fieldset class="slot">
-        <legend>{{ loop.index }}º Horário — {{ slot.hora }}</legend>
+        <legend>{{ loop.index }}º Horário</legend>
         <div class="oficinas">
           {% for w in workshops %}
             {% if w["name"] not in slot.bloqueadas %}
@@ -142,7 +142,6 @@
                        data-slot-id="{{ slot.id }}"
                        onchange="updateSlots()">
                 {{ w["name"] }}
-                <small class="muted">({{ w["registered"] }}/{{ w["capacity"] }} vagas ocupadas)</small>
               </label>
             {% else %}
               <label class="bloqueada">
