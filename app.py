@@ -7,7 +7,7 @@ from functools import wraps
 APP_SECRET = os.environ.get("APP_SECRET", "changeme")
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS_HASH = os.environ.get("ADMIN_PASS_HASH")
-ADMIN_PASS = os.environ.get("2025En#")
+ADMIN_PASS = os.environ.get("ADMIN_PASS")
 
 app = Flask(__name__)
 app.secret_key = APP_SECRET
@@ -172,7 +172,7 @@ def inscrever():
 def login():
     error = None
     if request.method == "POST":
-        if request.form["username"] == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, request.form["password"]):
+        if request.form["username"] == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, request.form["2025En#"]):
             session["admin_logged"] = True
             return redirect(url_for("admin"))
         error = "Login inválido"
