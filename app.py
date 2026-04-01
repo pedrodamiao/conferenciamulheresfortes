@@ -11,12 +11,12 @@ ADMIN_PASS = os.environ.get("ADMIN_PASS")
 
 app = Flask(__name__)
 app.secret_key = APP_SECRET
-DB_PATH = os.environ.get("DB_PATH", "inscricoes.db")
+DB_PATH = os.environ.get("DB_PATH", "/data/inscricoes.db")
 
 
 # ================== DB ==================
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10, isolation_level=None)
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -62,6 +62,10 @@ def init_db():
         conn.commit()
 
 
+with app.app_context():
+    init_db()
+
+
 # ================== AUTH ==================
 def login_required(view):
     @wraps(view)
@@ -72,17 +76,7 @@ def login_required(view):
     return wrapped
 
 
-@app.before_request
-def bootstrap():
-    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
-    init_db()
-
-    global ADMIN_PASS_HASH
-    if not ADMIN_PASS_HASH and ADMIN_PASS:
-        ADMIN_PASS_HASH = generate_password_hash(ADMIN_PASS)
-
-
-# ================== ROTAS ==================
+# ================== INDEX ==================
 @app.route("/")
 def index():
     conn = get_db()
@@ -102,6 +96,7 @@ def index():
     return render_template("index.html", slots=slots, workshops=workshops)
 
 
+# ================== INSCRIÇÃO ==================
 @app.route("/", methods=["POST"])
 def inscrever():
     full_name = request.form.get("full_name")
@@ -112,17 +107,18 @@ def inscrever():
         flash("Preencha todos os campos.", "error")
         return redirect(url_for("index"))
 
-    selections = []
+    # 🔹 NOVO FORMATO CORRETO
+    selections = {}
     for i in range(1, 5):
         val = request.form.get(f"slot_{i}")
         if val:
-            selections.append(int(val))
+            selections[str(i)] = int(val)
 
     if len(selections) < 1:
         flash("Escolha pelo menos uma oficina.", "error")
         return redirect(url_for("index"))
 
-    if len(selections) != len(set(selections)):
+    if len(set(selections.values())) != len(selections.values()):
         flash("Não repita oficinas.", "error")
         return redirect(url_for("index"))
 
@@ -135,27 +131,22 @@ def inscrever():
         flash("E-mail já cadastrado.", "error")
         return redirect(url_for("index"))
 
-    # valida vagas corretamente
-    for wid in selections:
-        cur.execute("""
-            SELECT COUNT(*) FROM attendees
-            WHERE selections LIKE ?
-            OR selections LIKE ?
-            OR selections LIKE ?
-            OR selections = ?
-        """, (
-            f'[{wid},%',
-            f'%,{wid},%',
-            f'%,{wid}]',
-            f'[{wid}]'
-        ))
+    # 🔹 valida vagas corretamente
+    cur.execute("SELECT selections FROM attendees")
+    all_sel = [json.loads(r["selections"]) for r in cur.fetchall()]
 
-        count = cur.fetchone()[0]
+    count_map = {}
+    for s in all_sel:
+        if isinstance(s, list):
+            s = {str(i+1): v for i, v in enumerate(s)}
+        for wid in s.values():
+            count_map[wid] = count_map.get(wid, 0) + 1
 
+    for wid in selections.values():
         cur.execute("SELECT capacity FROM workshops WHERE id=?", (wid,))
-        cap = cur.fetchone()[0]
+        cap = cur.fetchone()["capacity"]
 
-        if count >= cap:
+        if count_map.get(wid, 0) >= cap:
             conn.close()
             flash("Uma oficina já lotou.", "error")
             return redirect(url_for("index"))
@@ -173,29 +164,21 @@ def inscrever():
     conn.commit()
     conn.close()
 
-    # ===== página de sucesso =====
-    slots_map = {
-        1: "14h",
-        2: "15:50h",
-        3: "19h",
-        4: "20:50h"
-    }
+    # sucesso
+    slots_map = {1: "14h", 2: "15:50h", 3: "19h", 4: "20:50h"}
 
     conn = get_db()
     cur = conn.cursor()
 
     selected_data = []
+    for slot, wid in selections.items():
+        cur.execute("SELECT name FROM workshops WHERE id=?", (wid,))
+        name = cur.fetchone()["name"]
 
-    for i in range(1, 5):
-        val = request.form.get(f"slot_{i}")
-        if val:
-            cur.execute("SELECT name FROM workshops WHERE id=?", (int(val),))
-            name = cur.fetchone()[0]
-
-            selected_data.append({
-                "horario": slots_map[i],
-                "oficina": name
-            })
+        selected_data.append({
+            "horario": slots_map[int(slot)],
+            "oficina": name
+        })
 
     conn.close()
 
@@ -211,10 +194,8 @@ def inscrever():
 @app.route("/sucesso")
 def sucesso():
     data = session.get("last_registration")
-
     if not data:
         return redirect(url_for("index"))
-
     return render_template("sucesso.html", data=data)
 
 
@@ -240,7 +221,6 @@ def login():
     return render_template("login.html", error=error)
 
 
-# ================== LOGOUT (CORREÇÃO PRINCIPAL) ==================
 @app.route("/logout")
 def logout():
     session.clear()
@@ -255,40 +235,35 @@ def admin():
     cur = conn.cursor()
 
     cur.execute("SELECT id, name, capacity FROM workshops")
+    workshops_raw = cur.fetchall()
+
+    cur.execute("SELECT selections FROM attendees")
+    all_sel = [json.loads(r["selections"]) for r in cur.fetchall()]
+
+    count_map = {}
+    for s in all_sel:
+        if isinstance(s, list):
+            s = {str(i+1): v for i, v in enumerate(s)}
+        for wid in s.values():
+            count_map[wid] = count_map.get(wid, 0) + 1
 
     workshops = []
-
-    for row in cur.fetchall():
-        wid = row["id"]
-
-        cur.execute("""
-            SELECT COUNT(*) FROM attendees
-            WHERE selections LIKE ?
-            OR selections LIKE ?
-            OR selections LIKE ?
-            OR selections = ?
-        """, (
-            f'[{wid},%',
-            f'%,{wid},%',
-            f'%,{wid}]',
-            f'[{wid}]'
-        ))
-
-        registered = cur.fetchone()[0]
-        remaining = row["capacity"] - registered
+    for w in workshops_raw:
+        wid = w["id"]
+        cap = w["capacity"]
+        reg = count_map.get(wid, 0)
 
         workshops.append({
             "id": wid,
-            "name": row["name"],
-            "capacity_total": row["capacity"],
-            "registered_total": registered,
-            "remaining_total": max(remaining, 0)
+            "name": w["name"],
+            "capacity_total": cap,
+            "registered_total": reg,
+            "remaining_total": max(cap - reg, 0)
         })
 
     cur.execute("SELECT * FROM attendees ORDER BY created_at DESC")
 
     attendees = []
-
     for row in cur.fetchall():
         dt = datetime.datetime.fromisoformat(row["created_at"]) - datetime.timedelta(hours=3)
 
@@ -300,15 +275,12 @@ def admin():
             "created_at_local": dt.strftime("%d/%m/%Y %H:%M")
         })
 
-    total_attendees = len(attendees)
-
     conn.close()
 
-    return render_template(
-        "admin.html",
+    return render_template("admin.html",
         workshops=workshops,
         attendees=attendees,
-        total_attendees=total_attendees
+        total_attendees=len(attendees)
     )
 
 
@@ -326,19 +298,21 @@ def reports():
     workshops_map = {row["id"]: row["name"] for row in cur.fetchall()}
 
     people = []
+
     for r in rows:
         sel = json.loads(r["selections"])
+
+        if isinstance(sel, list):
+            sel = {str(i+1): v for i, v in enumerate(sel)}
+
         data = {
             "full_name": r["full_name"],
             "email": r["email"]
         }
 
         for i in range(1, 5):
-            if i-1 < len(sel):
-                wid = sel[i-1]
-                data[f"slot_{i}"] = workshops_map.get(wid, "")
-            else:
-                data[f"slot_{i}"] = ""
+            wid = sel.get(str(i))
+            data[f"slot_{i}"] = workshops_map.get(wid, "") if wid else ""
 
         people.append(data)
 
