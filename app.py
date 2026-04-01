@@ -239,8 +239,29 @@ def admin():
     conn = get_db()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM workshops")
-    workshops = [dict(row) for row in cur.fetchall()]
+    cur.execute("""
+    SELECT 
+        w.id,
+        w.name,
+        w.capacity AS capacity_total,
+        (
+            SELECT COUNT(*) 
+            FROM attendees a 
+            WHERE instr(a.selections, json_quote(w.id)) > 0
+        ) AS registered_total
+    FROM workshops w
+""")
+
+workshops = []
+for row in cur.fetchall():
+    remaining = row["capacity_total"] - row["registered_total"]
+    workshops.append({
+        "id": row["id"],
+        "name": row["name"],
+        "capacity_total": row["capacity_total"],
+        "registered_total": row["registered_total"],
+        "remaining_total": max(remaining, 0)
+    })
 
     cur.execute("SELECT * FROM attendees ORDER BY created_at DESC")
     attendees = []
