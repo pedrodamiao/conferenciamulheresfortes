@@ -98,6 +98,30 @@ def index():
     cur.execute("SELECT * FROM workshops")
     workshops = [dict(row) for row in cur.fetchall()]
 
+    cur.execute("SELECT selections FROM attendees")
+    all_selections = [json.loads(row["selections"]) for row in cur.fetchall()]
+
+    count_map = {}
+
+    for sel_list in all_selections:
+        for wid in sel_list:
+            count_map[wid] = count_map.get(wid, 0) + 1
+
+    workshops = []
+
+    for w in workshops_raw:
+        wid = w["id"]
+        capacity = w["capacity"]
+        registered = count_map.get(wid, 0)
+
+        workshops.append({
+            "id": wid,
+            "name": w["name"],
+            "capacity_total": capacity,
+            "registered_total": registered,
+            "remaining_total": capacity - registered
+        })
+
     conn.close()
     return render_template("index.html", slots=slots, workshops=workshops)
 
