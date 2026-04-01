@@ -322,6 +322,9 @@ def reports():
     cur.execute("SELECT * FROM attendees ORDER BY created_at DESC")
     rows = cur.fetchall()
 
+    cur.execute("SELECT id, name FROM workshops")
+    workshops_map = {row["id"]: row["name"] for row in cur.fetchall()}
+
     people = []
     for r in rows:
         sel = json.loads(r["selections"])
