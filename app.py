@@ -331,7 +331,11 @@ def reports():
         }
 
         for i in range(1, 5):
-            data[f"slot_{i}"] = sel[i-1] if i-1 < len(sel) else ""
+            if i-1 < len(sel):
+                wid = sel[i-1]
+                data[f"slot_{i}"] = workshops_map.get(wid, "")
+            else:
+                data[f"slot_{i}"] = ""
 
         people.append(data)
 
