@@ -160,25 +160,31 @@
       </tr>
     </thead>
 
-    <tbody>
-      {% if attendees and attendees|length > 0 %}
-        {% for a in attendees %}
-        <tr>
-          <td>{{ a.full_name }}</td>
-          <td>{{ a.email }}</td>
-          <td>{{ a.created_at_local }}</td>
-          <td class="nowrap">
-            <form class="inline" method="post" action="{{ url_for('delete_attendee', att_id=a.id) }}"
-                  onsubmit="return confirm('Excluir a inscrição de {{ a.full_name }}?');">
-              <button type="submit" class="btn btn-danger">Excluir</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-        {% else %}
-        <tr><td colspan="5"><em>Nenhuma inscrição até o momento.</em></td></tr>
-      {% endif %}
-    </tbody>
+  <tbody>
+    {% if attendees and attendees|length > 0 %}
+      {% for a in attendees %}
+      <tr>
+        <td>{{ a.full_name }}</td>
+        <td>{{ a.email }}</td>
+        <td>{{ a.created_at_local }}</td>
+
+        <td>
+          <form method="post"
+                action="{{ url_for('delete_attendee', att_id=a.id) }}"
+                onsubmit="return confirm('Deseja realmente excluir esta inscrição?');">
+            <button type="submit" class="btn" style="background:#c62828;">
+              Excluir
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr>
+        <td colspan="4">Nenhum inscrito encontrado.</td>
+      </tr>
+    {% endif %}
+  </tbody>
   </table>
 
     <div class="footer">
