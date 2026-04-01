@@ -68,12 +68,11 @@
 </head>
 <body>
   <div class="card">
-    <h1>Inscrição realizada com sucesso 🎉</h1>
+    <h1>Inscrição realizada com sucesso</h1>
     <p class="sub">Confira suas escolhas:</p>
 
     {% for s in data.selecoes %}
       <div class="item">
-        <div class="horario">{{ s.horario }}</div>
         <div>{{ s.oficina }}</div>
       </div>
     {% endfor %}
