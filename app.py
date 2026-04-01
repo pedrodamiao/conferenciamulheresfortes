@@ -231,6 +231,36 @@ def login():
 
     return render_template("login.html", error=error)
 
+@app.route("/reports")
+@login_required
+def reports():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM attendees ORDER BY created_at DESC")
+    rows = cur.fetchall()
+
+    people = []
+    for r in rows:
+        sel = json.loads(r["selections"])
+        data = {
+            "full_name": r["full_name"],
+            "email": r["email"]
+        }
+        for i, v in enumerate(sel, start=1):
+            data[f"slot_{i}"] = v
+        people.append(data)
+
+    slots = [
+        {"id": 1, "hora": "14h"},
+        {"id": 2, "hora": "15:50h"},
+        {"id": 3, "hora": "19h"},
+        {"id": 4, "hora": "20:50h"},
+    ]
+
+    conn.close()
+    return render_template("reports.html", people=people, slots=slots)
+
 
 # ================== ADMIN ==================
 @app.route("/admin")
