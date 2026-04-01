@@ -69,7 +69,13 @@
 <body>
   <div class="card">
     <h1>Inscrição realizada com sucesso</h1>
-    <p class="sub">Confira suas escolhas:</p>
+
+    <p class="sub">
+      Seja bem vinda a Conferência Mulheres Fortes, <strong>{{ data.nome }}</strong>!<br>
+      E-mail: cadastrado: <strong>{{ data.email }}</strong>
+    </p>
+
+    <p class="sub">Oficinas escolhidas:</p>
 
     {% for s in data.selecoes %}
       <div class="item">
