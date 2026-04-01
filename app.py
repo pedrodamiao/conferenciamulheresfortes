@@ -213,19 +213,11 @@ def sucesso():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
-
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-
-        if not ADMIN_PASS_HASH:
-            error = "Senha do admin não configurada."
-        elif username == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, password):
+        if request.form["username"] == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, request.form["password"]):
             session["admin_logged"] = True
             return redirect(url_for("admin"))
-        else:
-            error = "Usuário ou senha incorretos."
-
+        error = "Login inválido"
     return render_template("login.html", error=error)
 
 
