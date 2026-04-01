@@ -142,7 +142,7 @@
               <td class="nowrap">
                 <form class="inline" method="post" action="{{ url_for('delete_attendee', att_id=a.id) }}"
                       onsubmit="return confirm('Excluir a inscrição de {{ a.full_name }}?');">
-                  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                  <!-- <input type="hidden" name="_csrf_token" value="{{ csrf_token }}"> -->
                   <button type="submit" class="btn btn-danger">Excluir</button>
                 </form>
               </td>
@@ -159,7 +159,7 @@
 
       <form method="post" action="{{ url_for('admin_reset') }}"
             onsubmit="return confirm('⚠️ Isso vai apagar TODAS as inscrições e zerar os contadores. Tem certeza?');">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <!-- <input type="hidden" name="_csrf_token" value="{{ csrf_token }}"> -->
         <button type="submit" class="btn btn-danger">Resetar Base</button>
       </form>
     </div>
