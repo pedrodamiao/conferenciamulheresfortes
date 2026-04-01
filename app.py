@@ -164,7 +164,7 @@ def inscrever():
     conn.commit()
     conn.close()
 
-slots_map = {
+    slots_map = {
         1: "14h",
         2: "15:50h",
         3: "19h",
