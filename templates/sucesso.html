@@ -73,6 +73,7 @@
 
     {% for s in data.selecoes %}
       <div class="item">
+        <div class="horario">{{ loop.index }}º horário</div>
         <div>{{ s.oficina }}</div>
       </div>
     {% endfor %}
