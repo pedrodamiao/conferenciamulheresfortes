@@ -56,7 +56,7 @@ def init_db():
             for n in names:
                 cur.execute(
                     "INSERT INTO workshops(name, capacity) VALUES (?, ?)",
-                    (n, 10)  # 👈 agora é por horário
+                    (n, 10)  # capacidade por horário
                 )
 
         conn.commit()
@@ -150,7 +150,7 @@ def inscrever():
         "4": "20:50h"
     }
 
-    # 🔥 VALIDAÇÃO CORRETA
+    # 🔥 VALIDAÇÃO POR HORÁRIO
     for slot, wid in selections.items():
         current = count_map.get((wid, slot), 0)
 
@@ -174,7 +174,7 @@ def inscrever():
 
     conn.commit()
 
-    # montar resposta sucesso
+    # montar tela sucesso
     selected_data = []
     for slot, wid in selections.items():
         cur.execute("SELECT name FROM workshops WHERE id=?", (wid,))
@@ -187,7 +187,6 @@ def inscrever():
 
     conn.close()
 
-    # ordena por horário
     selected_data = sorted(selected_data, key=lambda x: x["horario"])
 
     session["last_registration"] = {
@@ -297,6 +296,36 @@ def admin():
     )
 
 
+# ================== UPDATE CAPACITY ==================
+@app.route("/admin/update_capacity/<int:workshop_id>", methods=["POST"])
+@login_required
+def update_capacity(workshop_id):
+    try:
+        new_capacity = int(request.form.get("capacity"))
+
+        if new_capacity <= 0:
+            flash("A capacidade deve ser maior que zero.", "error")
+            return redirect(url_for("admin"))
+
+        conn = get_db()
+        cur = conn.cursor()
+
+        cur.execute(
+            "UPDATE workshops SET capacity = ? WHERE id = ?",
+            (new_capacity, workshop_id)
+        )
+
+        conn.commit()
+        conn.close()
+
+        flash("Capacidade atualizada com sucesso.", "message")
+
+    except Exception:
+        flash("Erro ao atualizar capacidade.", "error")
+
+    return redirect(url_for("admin"))
+
+
 # ================== REPORTS ==================
 @app.route("/reports")
 @login_required
@@ -340,6 +369,7 @@ def reports():
     return render_template("reports.html", people=people, slots=slots)
 
 
+# ================== DELETE ==================
 @app.route("/delete/<int:att_id>", methods=["POST"])
 @login_required
 def delete_attendee(att_id):
@@ -352,6 +382,7 @@ def delete_attendee(att_id):
     return redirect(url_for("admin"))
 
 
+# ================== RESET ==================
 @app.route("/admin/reset", methods=["POST"])
 @login_required
 def reset():
