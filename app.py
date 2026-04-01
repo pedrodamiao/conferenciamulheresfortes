@@ -109,7 +109,7 @@ def inscrever():
     consent = request.form.get("consent")
 
     if not full_name or not email or not consent:
-        flash(("error", "Preencha todos os campos."))
+        flash("Preencha todos os campos.", "error")
         return redirect(url_for("index"))
 
     selections = []
@@ -119,11 +119,11 @@ def inscrever():
             selections.append(int(val))
 
     if len(selections) < 1:
-        flash(("error", "Escolha pelo menos uma oficina."))
+        flash("Escolha pelo menos uma oficina.", "error")
         return redirect(url_for("index"))
 
     if len(selections) != len(set(selections)):
-        flash(("error", "Não repita oficinas."))
+        flash("Não repita oficinas.", "error")
         return redirect(url_for("index"))
 
     conn = get_db()
@@ -132,10 +132,9 @@ def inscrever():
     cur.execute("SELECT id FROM attendees WHERE email=?", (email,))
     if cur.fetchone():
         conn.close()
-        flash(("error", "E-mail já cadastrado."))
+        flash("E-mail já cadastrado.", "error")
         return redirect(url_for("index"))
 
-    # valida vagas por horário
     for wid in selections:
         cur.execute("""
             SELECT COUNT(*) FROM attendees
@@ -148,7 +147,7 @@ def inscrever():
 
         if count >= cap:
             conn.close()
-            flash(("error", "Uma oficina já lotou."))
+            flash("Uma oficina já lotou.", "error")
             return redirect(url_for("index"))
 
     cur.execute("""
@@ -198,7 +197,6 @@ def inscrever():
     return redirect(url_for("sucesso"))
 
 
-# ================== NOVA ROTA ==================
 @app.route("/sucesso")
 def sucesso():
     data = session.get("last_registration")
@@ -218,7 +216,6 @@ def login():
         username = request.form.get("username")
         password = request.form.get("password")
 
-        # proteção contra None
         if not ADMIN_PASS_HASH:
             error = "Senha do admin não configurada no servidor."
         
@@ -230,36 +227,6 @@ def login():
             error = "Usuário ou senha incorretos."
 
     return render_template("login.html", error=error)
-
-@app.route("/reports")
-@login_required
-def reports():
-    conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("SELECT * FROM attendees ORDER BY created_at DESC")
-    rows = cur.fetchall()
-
-    people = []
-    for r in rows:
-        sel = json.loads(r["selections"])
-        data = {
-            "full_name": r["full_name"],
-            "email": r["email"]
-        }
-        for i, v in enumerate(sel, start=1):
-            data[f"slot_{i}"] = v
-        people.append(data)
-
-    slots = [
-        {"id": 1, "hora": "14h"},
-        {"id": 2, "hora": "15:50h"},
-        {"id": 3, "hora": "19h"},
-        {"id": 4, "hora": "20:50h"},
-    ]
-
-    conn.close()
-    return render_template("reports.html", people=people, slots=slots)
 
 
 # ================== ADMIN ==================
@@ -292,6 +259,40 @@ def admin():
     return render_template("admin.html", workshops=workshops, attendees=attendees, total_attendees=total_attendees)
 
 
+# ================== REPORTS (NOVO) ==================
+@app.route("/reports")
+@login_required
+def reports():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM attendees ORDER BY created_at DESC")
+    rows = cur.fetchall()
+
+    people = []
+    for r in rows:
+        sel = json.loads(r["selections"])
+        data = {
+            "full_name": r["full_name"],
+            "email": r["email"]
+        }
+
+        for i in range(1, 5):
+            data[f"slot_{i}"] = sel[i-1] if i-1 < len(sel) else ""
+
+        people.append(data)
+
+    slots = [
+        {"id": 1, "hora": "14h"},
+        {"id": 2, "hora": "15:50h"},
+        {"id": 3, "hora": "19h"},
+        {"id": 4, "hora": "20:50h"},
+    ]
+
+    conn.close()
+    return render_template("reports.html", people=people, slots=slots)
+
+
 @app.route("/delete/<int:att_id>", methods=["POST"])
 @login_required
 def delete_attendee(att_id):
@@ -300,7 +301,7 @@ def delete_attendee(att_id):
     cur.execute("DELETE FROM attendees WHERE id=?", (att_id,))
     conn.commit()
     conn.close()
-    flash(("message", "Inscrição excluída."))
+    flash("Inscrição excluída.", "message")
     return redirect(url_for("admin"))
 
 
@@ -312,7 +313,7 @@ def reset():
     cur.execute("DELETE FROM attendees")
     conn.commit()
     conn.close()
-    flash(("message", "Base resetada."))
+    flash("Base resetada.", "message")
     return redirect(url_for("admin"))
 
 
