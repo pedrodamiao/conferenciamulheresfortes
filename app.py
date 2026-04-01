@@ -92,8 +92,36 @@ def index():
     cur.execute("SELECT * FROM workshops")
     workshops = [dict(row) for row in cur.fetchall()]
 
+    cur.execute("SELECT selections FROM attendees")
+    all_sel = [json.loads(r["selections"]) for r in cur.fetchall()]
+
+    count_map = {}
+    for s in all_sel:
+        if isinstance(s, list):
+            s = {str(i+1): v for i, v in enumerate(s)}
+
+        for slot, wid in s.items():
+            key = (wid, slot)
+            count_map[key] = count_map.get(key, 0) + 1
+
+    lotadas = set()
+
+    for w in workshops:
+        wid = w["id"]
+        cap = w["capacity"]
+
+        for slot in range(1, 5):
+            if count_map.get((wid, str(slot)), 0) >= cap:
+                lotadas.add((wid, str(slot)))
+
     conn.close()
-    return render_template("index.html", slots=slots, workshops=workshops)
+
+    return render_template(
+        "index.html",
+        slots=slots,
+        workshops=workshops,
+        lotadas=lotadas  # 👈 ESSENCIAL
+    )
 
 
 # ================== INSCRIÇÃO ==================
