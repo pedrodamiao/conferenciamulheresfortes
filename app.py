@@ -351,5 +351,33 @@ def reset():
     return redirect(url_for("admin"))
 
 
+@app.route("/admin/update_capacity/<int:workshop_id>", methods=["POST"])
+@login_required
+def update_capacity(workshop_id):
+    try:
+        new_capacity = int(request.form.get("capacity"))
+
+        if new_capacity <= 0:
+            flash("A capacidade deve ser maior que zero.", "error")
+            return redirect(url_for("admin"))
+
+        conn = get_db()
+        cur = conn.cursor()
+
+        cur.execute(
+            "UPDATE workshops SET capacity = ? WHERE id = ?",
+            (new_capacity, workshop_id)
+        )
+
+        conn.commit()
+        conn.close()
+
+        flash("Capacidade atualizada com sucesso.", "message")
+
+    except Exception as e:
+        flash("Erro ao atualizar capacidade.", "error")
+
+    return redirect(url_for("admin"))
+
 if __name__ == "__main__":
     app.run(debug=True)
