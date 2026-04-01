@@ -135,11 +135,21 @@ def inscrever():
         flash("E-mail já cadastrado.", "error")
         return redirect(url_for("index"))
 
+    # valida vagas corretamente (sem bug de string)
     for wid in selections:
         cur.execute("""
             SELECT COUNT(*) FROM attendees
-            WHERE instr(selections, ?) > 0
-        """, (str(wid),))
+            WHERE selections LIKE ?
+            OR selections LIKE ?
+            OR selections LIKE ?
+            OR selections = ?
+        """, (
+            f'[{wid},%',
+            f'%,{wid},%',
+            f'%,{wid}]',
+            f'[{wid}]'
+        ))
+
         count = cur.fetchone()[0]
 
         cur.execute("SELECT capacity FROM workshops WHERE id=?", (wid,))
@@ -163,6 +173,7 @@ def inscrever():
     conn.commit()
     conn.close()
 
+    # ===== página de sucesso =====
     slots_map = {
         1: "14h",
         2: "15:50h",
@@ -236,10 +247,39 @@ def admin():
     conn = get_db()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM workshops")
-    workshops = [dict(row) for row in cur.fetchall()]
+    cur.execute("SELECT id, name, capacity FROM workshops")
+
+    workshops = []
+
+    for row in cur.fetchall():
+        wid = row["id"]
+
+        cur.execute("""
+            SELECT COUNT(*) FROM attendees
+            WHERE selections LIKE ?
+            OR selections LIKE ?
+            OR selections LIKE ?
+            OR selections = ?
+        """, (
+            f'[{wid},%',
+            f'%,{wid},%',
+            f'%,{wid}]',
+            f'[{wid}]'
+        ))
+
+        registered = cur.fetchone()[0]
+        remaining = row["capacity"] - registered
+
+        workshops.append({
+            "id": wid,
+            "name": row["name"],
+            "capacity_total": row["capacity"],
+            "registered_total": registered,
+            "remaining_total": max(remaining, 0)
+        })
 
     cur.execute("SELECT * FROM attendees ORDER BY created_at DESC")
+
     attendees = []
 
     for row in cur.fetchall():
@@ -256,10 +296,16 @@ def admin():
     total_attendees = len(attendees)
 
     conn.close()
-    return render_template("admin.html", workshops=workshops, attendees=attendees, total_attendees=total_attendees)
+
+    return render_template(
+        "admin.html",
+        workshops=workshops,
+        attendees=attendees,
+        total_attendees=total_attendees
+    )
 
 
-# ================== REPORTS (NOVO) ==================
+# ================== REPORTS ==================
 @app.route("/reports")
 @login_required
 def reports():
