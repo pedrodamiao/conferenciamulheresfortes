@@ -79,8 +79,8 @@
 
     {% for s in data.selecoes %}
       <div class="item">
-        <div class="horario">{{ loop.index }}º horário</div>
-        <div>{{ s.oficina }}</div>
+        <div class="horario">{{ s.horario }}</div>
+        <div><strong>{{ s.oficina }}</strong></div>
       </div>
     {% endfor %}
 
