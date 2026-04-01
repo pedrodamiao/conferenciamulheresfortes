@@ -56,7 +56,7 @@ def init_db():
             for n in names:
                 cur.execute(
                     "INSERT INTO workshops(name, capacity) VALUES (?, ?)",
-                    (n, 30)
+                    (n, 20)
                 )
 
         conn.commit()
