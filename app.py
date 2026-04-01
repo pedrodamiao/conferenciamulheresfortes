@@ -135,7 +135,7 @@ def inscrever():
         flash("E-mail já cadastrado.", "error")
         return redirect(url_for("index"))
 
-    # valida vagas corretamente (sem bug de string)
+    # valida vagas corretamente
     for wid in selections:
         cur.execute("""
             SELECT COUNT(*) FROM attendees
@@ -238,6 +238,13 @@ def login():
             error = "Usuário ou senha incorretos."
 
     return render_template("login.html", error=error)
+
+
+# ================== LOGOUT (CORREÇÃO PRINCIPAL) ==================
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 
 # ================== ADMIN ==================
