@@ -112,7 +112,7 @@ def index():
 
         for slot in range(1, 5):
             if count_map.get((wid, str(slot)), 0) >= cap:
-                lotadas.add((wid, str(slot)))
+                lotadas.add(f"{wid}_{slot}")
 
     conn.close()
 
