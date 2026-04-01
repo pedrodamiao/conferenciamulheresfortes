@@ -135,7 +135,7 @@ def inscrever():
         flash(("error", "E-mail já cadastrado."))
         return redirect(url_for("index"))
 
-    # valida vagas por horário (30 por oficina)
+    # valida vagas por horário
     for wid in selections:
         cur.execute("""
             SELECT COUNT(*) FROM attendees
@@ -164,18 +164,68 @@ def inscrever():
     conn.commit()
     conn.close()
 
-    flash(("message", "Inscrição realizada com sucesso!"))
-    return redirect(url_for("index"))
+    slots_map = {
+        1: "14h",
+        2: "15:50h",
+        3: "19h",
+        4: "20:50h"
+    }
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    selected_data = []
+
+    for i in range(1, 5):
+        val = request.form.get(f"slot_{i}")
+        if val:
+            cur.execute("SELECT name FROM workshops WHERE id=?", (int(val),))
+            name = cur.fetchone()[0]
+
+            selected_data.append({
+                "horario": slots_map[i],
+                "oficina": name
+            })
+
+    conn.close()
+
+    session["last_registration"] = {
+        "nome": full_name,
+        "email": email,
+        "selecoes": selected_data
+    }
+
+    return redirect(url_for("sucesso"))
 
 
+# ================== NOVA ROTA ==================
+@app.route("/sucesso")
+def sucesso():
+    data = session.get("last_registration")
+
+    if not data:
+        return redirect(url_for("index"))
+
+    return render_template("sucesso.html", data=data)
+
+
+# ================== LOGIN ==================
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
+
     if request.method == "POST":
-        if request.form["username"] == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, request.form["password"]):
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        if not ADMIN_PASS_HASH:
+            error = "Senha do admin não configurada."
+        elif username == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, password):
             session["admin_logged"] = True
             return redirect(url_for("admin"))
-        error = "Login inválido"
+        else:
+            error = "Usuário ou senha incorretos."
+
     return render_template("login.html", error=error)
 
 
@@ -185,6 +235,7 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ================== ADMIN ==================
 @app.route("/admin")
 @login_required
 def admin():
@@ -236,40 +287,6 @@ def reset():
     conn.close()
     flash(("message", "Base resetada."))
     return redirect(url_for("admin"))
-
-
-@app.route("/reports")
-@login_required
-def reports():
-    conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("SELECT * FROM attendees")
-    rows = cur.fetchall()
-
-    people = []
-    for r in rows:
-        sel = json.loads(r["selections"])
-
-        entry = {
-            "full_name": r["full_name"],
-            "email": r["email"],
-        }
-
-        for i in range(1, 5):
-            entry[f"slot_{i}"] = sel[i-1] if i <= len(sel) else ""
-
-        people.append(entry)
-
-    slots = [
-        {"id": 1, "hora": "14h"},
-        {"id": 2, "hora": "15:50h"},
-        {"id": 3, "hora": "19h"},
-        {"id": 4, "hora": "20:50h"},
-    ]
-
-    conn.close()
-    return render_template("reports.html", people=people, slots=slots)
 
 
 if __name__ == "__main__":
