@@ -56,7 +56,7 @@ def init_db():
             for n in names:
                 cur.execute(
                     "INSERT INTO workshops(name, capacity) VALUES (?, ?)",
-                    (n, 20)
+                    (n, 10)  # 👈 agora é por horário
                 )
 
         conn.commit()
@@ -107,7 +107,6 @@ def inscrever():
         flash("Preencha todos os campos.", "error")
         return redirect(url_for("index"))
 
-    # 🔹 NOVO FORMATO CORRETO
     selections = {}
     for i in range(1, 5):
         val = request.form.get(f"slot_{i}")
@@ -131,7 +130,7 @@ def inscrever():
         flash("E-mail já cadastrado.", "error")
         return redirect(url_for("index"))
 
-    # 🔹 valida vagas corretamente
+    # 🔥 CONTAGEM POR SLOT
     cur.execute("SELECT selections FROM attendees")
     all_sel = [json.loads(r["selections"]) for r in cur.fetchall()]
 
@@ -139,16 +138,28 @@ def inscrever():
     for s in all_sel:
         if isinstance(s, list):
             s = {str(i+1): v for i, v in enumerate(s)}
-        for wid in s.values():
-            count_map[wid] = count_map.get(wid, 0) + 1
 
-    for wid in selections.values():
+        for slot, wid in s.items():
+            key = (wid, slot)
+            count_map[key] = count_map.get(key, 0) + 1
+
+    slots_map = {
+        "1": "14h",
+        "2": "15:50h",
+        "3": "19h",
+        "4": "20:50h"
+    }
+
+    # 🔥 VALIDAÇÃO CORRETA
+    for slot, wid in selections.items():
+        current = count_map.get((wid, slot), 0)
+
         cur.execute("SELECT capacity FROM workshops WHERE id=?", (wid,))
         cap = cur.fetchone()["capacity"]
 
-        if count_map.get(wid, 0) >= cap:
+        if current >= cap:
             conn.close()
-            flash("Uma oficina já lotou.", "error")
+            flash(f"A oficina já lotou no horário {slots_map[slot]}.", "error")
             return redirect(url_for("index"))
 
     cur.execute("""
@@ -162,25 +173,22 @@ def inscrever():
     ))
 
     conn.commit()
-    conn.close()
 
-    # sucesso
-    slots_map = {1: "14h", 2: "15:50h", 3: "19h", 4: "20:50h"}
-
-    conn = get_db()
-    cur = conn.cursor()
-
+    # montar resposta sucesso
     selected_data = []
     for slot, wid in selections.items():
         cur.execute("SELECT name FROM workshops WHERE id=?", (wid,))
         name = cur.fetchone()["name"]
 
         selected_data.append({
-            "horario": slots_map[int(slot)],
+            "horario": slots_map[slot],
             "oficina": name
         })
 
     conn.close()
+
+    # ordena por horário
+    selected_data = sorted(selected_data, key=lambda x: x["horario"])
 
     session["last_registration"] = {
         "nome": full_name,
@@ -244,21 +252,27 @@ def admin():
     for s in all_sel:
         if isinstance(s, list):
             s = {str(i+1): v for i, v in enumerate(s)}
-        for wid in s.values():
-            count_map[wid] = count_map.get(wid, 0) + 1
+
+        for slot, wid in s.items():
+            key = (wid, slot)
+            count_map[key] = count_map.get(key, 0) + 1
 
     workshops = []
     for w in workshops_raw:
         wid = w["id"]
         cap = w["capacity"]
-        reg = count_map.get(wid, 0)
+
+        reg = sum(
+            count_map.get((wid, str(slot)), 0)
+            for slot in range(1, 5)
+        )
 
         workshops.append({
             "id": wid,
             "name": w["name"],
             "capacity_total": cap,
             "registered_total": reg,
-            "remaining_total": max(cap - reg, 0)
+            "remaining_total": max((cap * 4) - reg, 0)
         })
 
     cur.execute("SELECT * FROM attendees ORDER BY created_at DESC")
@@ -271,7 +285,6 @@ def admin():
             "id": row["id"],
             "full_name": row["full_name"],
             "email": row["email"],
-            "selections": json.loads(row["selections"]),
             "created_at_local": dt.strftime("%d/%m/%Y %H:%M")
         })
 
@@ -350,34 +363,6 @@ def reset():
     flash("Base resetada.", "message")
     return redirect(url_for("admin"))
 
-
-@app.route("/admin/update_capacity/<int:workshop_id>", methods=["POST"])
-@login_required
-def update_capacity(workshop_id):
-    try:
-        new_capacity = int(request.form.get("capacity"))
-
-        if new_capacity <= 0:
-            flash("A capacidade deve ser maior que zero.", "error")
-            return redirect(url_for("admin"))
-
-        conn = get_db()
-        cur = conn.cursor()
-
-        cur.execute(
-            "UPDATE workshops SET capacity = ? WHERE id = ?",
-            (new_capacity, workshop_id)
-        )
-
-        conn.commit()
-        conn.close()
-
-        flash("Capacidade atualizada com sucesso.", "message")
-
-    except Exception as e:
-        flash("Erro ao atualizar capacidade.", "error")
-
-    return redirect(url_for("admin"))
 
 if __name__ == "__main__":
     app.run(debug=True)
