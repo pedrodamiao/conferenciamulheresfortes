@@ -134,16 +134,14 @@
           {% for w in workshops %}
             {% if w["name"] not in slot.bloqueadas %}
 
-              {% set is_lotado = (w["id"] ~ "_" ~ slot.id) in lotadas %}
+              {% set key = w["id"] ~ "_" ~ slot.id|string %}
+              {% set is_lotado = key in lotadas %}
 
                 <label class="{% if is_lotado %}bloqueada{% endif %}">
                   <input type="radio"
                          class="opt"
                          name="slot_{{ slot.id }}"
                          value="{{ w['id'] }}"
-                         data-workshop-id="{{ w['id'] }}"
-                         data-slot-id="{{ slot.id }}"
-                         onchange="updateSlots()"
                          {% if is_lotado %}disabled{% endif %}>
     
                   {{ w["name"] }}
