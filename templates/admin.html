@@ -188,7 +188,7 @@
   </table>
 
     <div class="footer">
-      <div class="total">Total de inscritos: {{ total_attendees }}</div>
+      <div class="total" style="color:var(--brand);margin:.2rem 0 .6rem">Total de inscritos: {{ total_attendees }}</div>
 
       <form method="post" action="{{ url_for('reset') }}"
             onsubmit="return confirm('⚠️ Isso vai apagar TODAS as inscrições e zerar os contadores. Tem certeza?');">
