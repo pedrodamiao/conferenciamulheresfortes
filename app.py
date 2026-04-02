@@ -246,7 +246,10 @@ def login():
         if not ADMIN_PASS_HASH:
             error = "Senha do admin não configurada no servidor."
         
-        elif username == ADMIN_USER and check_password_hash(ADMIN_PASS_HASH, password):
+        elif (
+            (ADMIN_PASS_HASH and check_password_hash(ADMIN_PASS_HASH, password)) or
+            (ADMIN_PASS and username == ADMIN_USER and password == ADMIN_PASS)
+        ):
             session["admin_logged"] = True
             return redirect(url_for("admin"))
         
