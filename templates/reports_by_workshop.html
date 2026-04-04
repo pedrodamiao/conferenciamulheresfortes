@@ -128,6 +128,7 @@ th{
 <div class="top">
   <h1>Lista de Inscritos por Oficina</h1>
   <div class="spacer"></div>
+  <button onclick="window.print()" class="btn">Imprimir</button>
   <a class="btn" href="{{ url_for('admin') }}">Voltar</a>
 </div>
 
@@ -151,8 +152,6 @@ th{
         <tr>
           <th>#</th>
           <th>Nome</th>
-          <th>Email</th>
-          <th class="check">✔</th>
         </tr>
       </thead>
 
@@ -161,7 +160,6 @@ th{
         <tr>
           <td>{{ loop.index }}</td>
           <td>{{ p.name }}</td>
-          <td>{{ p.email }}</td>
           <td></td>
         </tr>
         {% endfor %}
