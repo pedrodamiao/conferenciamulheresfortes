@@ -5,115 +5,182 @@
 <title>Lista de Inscritos por Oficina</title>
 
 <style>
-    :root{
-      --brand:#731240;
-      --brand-hover:#5a0f33;
-      --text:#222;
-      --muted:#666;
-      --border:#ddd;
-      --bg:#f2e9ea;
-      --thead:#731240;
-      --thead-tx:#fff;
-      --card:#ffffff;
-    }
-    *{box-sizing:border-box}
-    body{
-      font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-      max-width:1200px;margin:2rem auto;padding:0 1rem;
-      background:var(--bg);color:var(--text);
-    }
-    .top{
-      display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem
-    }
-    h1{
-      color:var(--brand);margin:.2rem 0 .8rem;font-size:1.8rem
-    }
-    .spacer{flex:1}
-    a.btn{
-      display:inline-block;background:var(--brand);color:#fff;text-decoration:none;
-      padding:.6rem .9rem;border-radius:6px;border:none;cursor:pointer
-    }
-    a.btn:hover{background:var(--brand-hover)}
-    table{
-      width:100%;border-collapse:collapse;margin:1rem 0 2rem;background:var(--card);
-      box-shadow:0 2px 8px rgba(0,0,0,.06)
-    }
-    th,td{
-      border:1px solid var(--border);padding:.55rem .6rem;vertical-align:top;text-align:left
-    }
-    th{background:var(--thead);color:var(--thead-tx);font-weight:600}
-    tr:nth-child(even) td{background:#fafafa}
-    .nowrap{white-space:nowrap}
-    .muted{color:var(--muted)}
-    .count{text-align:center;width:3rem}
+:root{
+  --brand:#731240;
+  --text:#222;
+  --muted:#666;
+  --border:#ddd;
+  --bg:#f2e9ea;
+  --card:#ffffff;
+}
 
-    .card{
-      background:#f8f3f4;
-      padding:1rem;
-      margin-bottom:1rem;
-      border-left:5px solid #731240;
-    }
+*{box-sizing:border-box}
+
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  max-width:1200px;
+  margin:2rem auto;
+  padding:0 1rem;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.top{
+  display:flex;
+  gap:.6rem;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:1rem;
+}
+
+h1{
+  color:var(--brand);
+  margin:.2rem 0 .8rem;
+  font-size:1.8rem;
+}
+
+.spacer{flex:1}
+
+a.btn, button.btn{
+  background:var(--brand);
+  color:#fff;
+  text-decoration:none;
+  padding:.6rem .9rem;
+  border-radius:6px;
+  border:none;
+  cursor:pointer;
+}
+
+a.btn:hover, button.btn:hover{
+  background:#5a0f33;
+}
+
+/* ===== BLOCO DE IMPRESSÃO ===== */
+.page{
+  background:white;
+  padding:20px;
+  margin-bottom:20px;
+  border-radius:8px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+  page-break-after: always;
+}
+
+/* ===== HEADER ===== */
+.header{
+  border-bottom:2px solid var(--brand);
+  margin-bottom:10px;
+  padding-bottom:5px;
+}
+
+.header h2{
+  margin:0;
+  color:var(--brand);
+}
+
+.header .slot{
+  font-weight:600;
+}
+
+/* ===== TABELA ===== */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+th,td{
+  border:1px solid var(--border);
+  padding:.55rem .6rem;
+  text-align:left;
+}
+
+th{
+  background:#eee;
+}
+
+.check{
+  width:40px;
+  text-align:center;
+}
+
+/* ===== PRINT ===== */
+@media print{
+  body{
+    margin:0;
+    background:white;
+  }
+
+  .top{
+    display:none;
+  }
+
+  .page{
+    box-shadow:none;
+    border-radius:0;
+    page-break-after:always;
+  }
+}
 </style>
 </head>
 
 <body>
-  <div class="top">
-    <h1>Lista de Inscritos por Oficina</h1>
-    <div class="spacer"></div>
-    <a class="btn" href="{{ url_for('admin') }}">Voltar</a>
+
+<div class="top">
+  <h1>Lista de Inscritos por Oficina</h1>
+  <div class="spacer"></div>
+  <a class="btn" href="{{ url_for('admin') }}">Voltar</a>
 </div>
-  
+
 <div style="margin-bottom:1rem; display:flex; gap:.5rem; flex-wrap:wrap;">
-  <button onclick="printBySlot()" class="btn">Imprimir por horário</button>
-  <button onclick="printByWorkshop()" class="btn">Imprimir por oficina</button>
+  <button onclick="window.print()" class="btn">🖨️ Imprimir</button>
 </div>
 
 {% for slot, oficinas in report.items() %}
-  <h2 class="slot" data-slot="{{ slot }}">{{ slot }}</h2>
-
   {% for oficina, pessoas in oficinas.items() %}
-    <div class="card" data-slot="{{ slot }}" data-workshop="{{ oficina }}">
-      <strong>{{ oficina }}</strong> ({{ pessoas|length }})
 
-      <ul>
-        {% for p in pessoas %}
-          <li>{{ p.name }} - {{ p.email }}</li>
-        {% endfor %}
-      </ul>
+  <div class="page">
+
+    <div class="header">
+      <h2>{{ oficina }}</h2>
+      <div class="slot">Horário: {{ slot }}</div>
+      <div>Total de inscritos: {{ pessoas|length }}</div>
     </div>
-  {% endfor %}
 
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nome</th>
+          <th>Email</th>
+          <th class="check">✔</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for p in pessoas %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.email }}</td>
+          <td></td>
+        </tr>
+        {% endfor %}
+
+        {% for i in range((20 - pessoas|length) if pessoas|length < 20 else 0) %}
+        <tr>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  </div>
+
+  {% endfor %}
 {% endfor %}
 
-<script>
-function resetView() {
-  document.querySelectorAll(".card").forEach(el => el.style.display = "block");
-  document.querySelectorAll(".slot").forEach(el => el.style.display = "block");
-}
-
-function printBySlot() {
-  resetView();
-  window.print();
-}
-
-function printByWorkshop() {
-  const slots = document.querySelectorAll(".slot");
-
-  slots.forEach(slot => {
-    const slotName = slot.dataset.slot;
-
-    // esconde título do horário
-    slot.style.display = "none";
-
-    // mantém apenas os cards
-    document.querySelectorAll(`.card[data-slot="${slotName}"]`)
-      .forEach(card => card.style.display = "block");
-  });
-
-  window.print();
-  resetView();
-}
-</script>
-  
 </body>
 </html>
