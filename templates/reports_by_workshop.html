@@ -34,11 +34,20 @@ h2{
 
 <h1>Lista de Inscritos por Oficina</h1>
 
+<div style="margin-bottom:1rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+  <button onclick="printBySlot()" class="btn">Imprimir por horário</button>
+  <button onclick="printByWorkshop()" class="btn">Imprimir por oficina</button>
+</div>
+
+<div style="margin-bottom:1rem;">
+  <a href="{{ url_for('admin') }}" class="btn">Voltar</a>
+</div>
+
 {% for slot, oficinas in report.items() %}
-  <h2>{{ slot }}</h2>
+  <h2 class="slot" data-slot="{{ slot }}">{{ slot }}</h2>
 
   {% for oficina, pessoas in oficinas.items() %}
-    <div class="card">
+    <div class="card" data-slot="{{ slot }}" data-workshop="{{ oficina }}">
       <strong>{{ oficina }}</strong> ({{ pessoas|length }})
 
       <ul>
@@ -51,5 +60,35 @@ h2{
 
 {% endfor %}
 
+<script>
+function resetView() {
+  document.querySelectorAll(".card").forEach(el => el.style.display = "block");
+  document.querySelectorAll(".slot").forEach(el => el.style.display = "block");
+}
+
+function printBySlot() {
+  resetView();
+  window.print();
+}
+
+function printByWorkshop() {
+  const slots = document.querySelectorAll(".slot");
+
+  slots.forEach(slot => {
+    const slotName = slot.dataset.slot;
+
+    // esconde título do horário
+    slot.style.display = "none";
+
+    // mantém apenas os cards
+    document.querySelectorAll(`.card[data-slot="${slotName}"]`)
+      .forEach(card => card.style.display = "block");
+  });
+
+  window.print();
+  resetView();
+}
+</script>
+  
 </body>
 </html>
