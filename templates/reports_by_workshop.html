@@ -11,20 +11,20 @@
   --muted:#666;
   --border:#ddd;
   --bg:#f2e9ea;
-  --card:#ffffff;
 }
 
 *{box-sizing:border-box}
 
 body{
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-  max-width:1200px;
+  max-width:900px; /* melhor para A4 */
   margin:2rem auto;
   padding:0 1rem;
   background:var(--bg);
   color:var(--text);
 }
 
+/* ===== TOPO ===== */
 .top{
   display:flex;
   gap:.6rem;
@@ -36,7 +36,7 @@ body{
 h1{
   color:var(--brand);
   margin:.2rem 0 .8rem;
-  font-size:1.8rem;
+  font-size:1.6rem;
 }
 
 .spacer{flex:1}
@@ -45,60 +45,68 @@ a.btn, button.btn{
   background:var(--brand);
   color:#fff;
   text-decoration:none;
-  padding:.6rem .9rem;
+  padding:.5rem .8rem;
   border-radius:6px;
   border:none;
   cursor:pointer;
+  font-size:.9rem;
 }
 
 a.btn:hover, button.btn:hover{
   background:#5a0f33;
 }
 
-/* ===== BLOCO DE IMPRESSÃO ===== */
+/* ===== PÁGINA ===== */
 .page{
   background:white;
-  padding:20px;
+  padding:16px;
   margin-bottom:20px;
-  border-radius:8px;
-  box-shadow:0 2px 8px rgba(0,0,0,.06);
+  border-radius:6px;
   page-break-after: always;
 }
 
 /* ===== HEADER ===== */
 .header{
   border-bottom:2px solid var(--brand);
-  margin-bottom:10px;
-  padding-bottom:5px;
+  margin-bottom:8px;
+  padding-bottom:4px;
 }
 
 .header h2{
   margin:0;
   color:var(--brand);
+  font-size:1.2rem;
 }
 
 .header .slot{
-  font-weight:600;
+  font-size:.9rem;
+  margin-top:2px;
+}
+
+.header .total{
+  font-size:.85rem;
+  color:var(--muted);
 }
 
 /* ===== TABELA ===== */
 table{
   width:100%;
   border-collapse:collapse;
-  margin-top:10px;
+  margin-top:8px;
 }
 
 th,td{
   border:1px solid var(--border);
-  padding:.55rem .6rem;
+  padding:.45rem .5rem;
   text-align:left;
+  font-size:.9rem;
 }
 
 th{
   background:#eee;
 }
 
-.check{
+td:first-child{
   width:40px;
   text-align:center;
 }
@@ -115,8 +123,8 @@ th{
   }
 
   .page{
-    box-shadow:none;
     border-radius:0;
+    padding:10px;
     page-break-after:always;
   }
 }
@@ -132,10 +140,6 @@ th{
   <a class="btn" href="{{ url_for('admin') }}">Voltar</a>
 </div>
 
-<div style="margin-bottom:1rem; display:flex; gap:.5rem; flex-wrap:wrap;">
-  <button onclick="window.print()" class="btn">🖨️ Imprimir</button>
-</div>
-
 {% for slot, oficinas in report.items() %}
   {% for oficina, pessoas in oficinas.items() %}
 
@@ -144,7 +148,7 @@ th{
     <div class="header">
       <h2>{{ oficina }}</h2>
       <div class="slot">Horário: {{ slot }}</div>
-      <div>Total de inscritos: {{ pessoas|length }}</div>
+      <div class="total">Total de inscritos: {{ pessoas|length }}</div>
     </div>
 
     <table>
@@ -160,14 +164,11 @@ th{
         <tr>
           <td>{{ loop.index }}</td>
           <td>{{ p.name }}</td>
-          <td></td>
         </tr>
         {% endfor %}
 
         {% for i in range((20 - pessoas|length) if pessoas|length < 20 else 0) %}
         <tr>
-          <td></td>
-          <td></td>
           <td></td>
           <td></td>
         </tr>
