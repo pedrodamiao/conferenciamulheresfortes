@@ -142,8 +142,10 @@
                          class="opt"
                          name="slot_{{ slot.id }}"
                          value="{{ w['id'] }}"
-                         {% if is_lotado %}disabled{% endif %}>
-    
+                         data-workshop-id="{{ w['id'] }}"
+                         onchange="updateSlots()"
+                         {% if is_lotado %}disabled data-lotado="1"{% endif %}>
+                  
                   {{ w["name"] }}
     
                   {% if is_lotado %}
@@ -184,32 +186,44 @@
   </form>
 
   <script>
-    function updateSlots() {
-      const radios = Array.from(document.querySelectorAll('input[type="radio"].opt'));
-      const byWorkshop = new Map();
-      radios.forEach(r => {
-        const wid = r.dataset.workshopId;
-        if (!wid) return;
-        if (!byWorkshop.has(wid)) byWorkshop.set(wid, []);
-        byWorkshop.get(wid).push(r);
-      });
+  function updateSlots() {
+    const radios = Array.from(document.querySelectorAll('input[type="radio"].opt'));
 
-      // Reabilita todos
-      byWorkshop.forEach(list => list.forEach(r => r.disabled = false));
+    const selected = new Set();
 
-      // Desabilita oficinas já escolhidas em outros horários
-      byWorkshop.forEach(list => {
-        const checked = list.find(r => r.checked && r.value);
-        if (checked) list.forEach(r => { if (r !== checked) r.disabled = true; });
-      });
+    radios.forEach(r => {
+      if (r.checked && r.value) {
+        selected.add(r.value);
+      }
+    });
 
-      // Habilita o submit se nº de escolhas (com valor) ∈ [1,4] 
-      const chosenCount = Array.from(document.querySelectorAll('input[type="radio"][name^="slot_"]:checked')) 
-        .filter(r => r.value).length; const submitBtn = document.getElementById('submitBtn'); 
-      submitBtn.disabled = !(chosenCount >= 1 && chosenCount <= 4); 
-    }
+    radios.forEach(r => {
+      const wid = r.dataset.workshopId;
 
-    document.addEventListener('DOMContentLoaded', updateSlots);
+      if (!wid) return;
+
+      const isLotado = r.hasAttribute("data-lotado");
+
+      if (selected.has(wid) && !r.checked) {
+        r.disabled = true;
+        r.parentElement.classList.add("bloqueada");
+      } else {
+      
+        if (!isLotado) {
+          r.disabled = false;
+          r.parentElement.classList.remove("bloqueada");
+        }
+      }
+    });
+
+    const chosenCount = Array.from(document.querySelectorAll('input[type="radio"][name^="slot_"]:checked'))
+      .filter(r => r.value).length;
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = !(chosenCount >= 1 && chosenCount <= 4);
+  }
+
+  document.addEventListener('DOMContentLoaded', updateSlots);
   </script>
 </body>
 </html>
