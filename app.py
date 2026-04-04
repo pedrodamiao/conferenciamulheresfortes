@@ -120,7 +120,7 @@ def index():
         "index.html",
         slots=slots,
         workshops=workshops,
-        lotadas=lotadas  # 👈 ESSENCIAL
+        lotadas=lotadas
     )
 
 
@@ -158,7 +158,7 @@ def inscrever():
         flash("E-mail já cadastrado.", "error")
         return redirect(url_for("index"))
 
-    # 🔥 CONTAGEM POR SLOT
+    # CONTAGEM POR SLOT
     cur.execute("SELECT selections FROM attendees")
     all_sel = [json.loads(r["selections"]) for r in cur.fetchall()]
 
@@ -178,7 +178,7 @@ def inscrever():
         "4": "20:50h"
     }
 
-    # 🔥 VALIDAÇÃO POR HORÁRIO
+    # VALIDAÇÃO POR HORÁRIO
     for slot, wid in selections.items():
         current = count_map.get((wid, slot), 0)
 
@@ -441,6 +441,12 @@ def reports_by_workshop():
                 "name": r["full_name"],
                 "email": r["email"]
             })
+            for slot in report:
+                for workshop in report[slot]:
+                    report[slot][workshop] = sorted(
+                        report[slot][workshop],
+                        key=lambda x: x["name"].lower()
+                    )
 
     conn.close()
 
