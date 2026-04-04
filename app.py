@@ -400,6 +400,53 @@ def reports():
     return render_template("reports.html", people=people, slots=slots)
 
 
+@app.route("/reports_by_workshop")
+@login_required
+def reports_by_workshop():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM attendees")
+    rows = cur.fetchall()
+
+    cur.execute("SELECT id, name FROM workshops")
+    workshops_map = {r["id"]: r["name"] for r in cur.fetchall()}
+
+    slots_map = {
+        "1": "14h",
+        "2": "15:50h",
+        "3": "19h",
+        "4": "20:50h"
+    }
+
+    report = {}
+
+    for r in rows:
+        sel = json.loads(r["selections"])
+
+        if isinstance(sel, list):
+            sel = {str(i+1): v for i, v in enumerate(sel)}
+
+        for slot, wid in sel.items():
+            slot_name = slots_map.get(slot)
+            workshop_name = workshops_map.get(wid, "Desconhecida")
+
+            if slot_name not in report:
+                report[slot_name] = {}
+
+            if workshop_name not in report[slot_name]:
+                report[slot_name][workshop_name] = []
+
+            report[slot_name][workshop_name].append({
+                "name": r["full_name"],
+                "email": r["email"]
+            })
+
+    conn.close()
+
+    return render_template("reports_by_workshop.html", report=report)
+
+
 # ================== DELETE ==================
 @app.route("/delete/<int:att_id>", methods=["POST"])
 @login_required
