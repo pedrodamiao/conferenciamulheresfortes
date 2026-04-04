@@ -31,16 +31,15 @@ h2{
 </head>
 
 <body>
-
-<h1>Lista de Inscritos por Oficina</h1>
-
+  <div class="top">
+    <h1>Lista de Inscritos por Oficina</h1>
+    <div class="spacer"></div>
+    <a class="btn" href="{{ url_for('admin') }}">Voltar</a>
+</div>
+  
 <div style="margin-bottom:1rem; display:flex; gap:.5rem; flex-wrap:wrap;">
   <button onclick="printBySlot()" class="btn">Imprimir por horário</button>
   <button onclick="printByWorkshop()" class="btn">Imprimir por oficina</button>
-</div>
-
-<div style="margin-bottom:1rem;">
-  <a href="{{ url_for('admin') }}" class="btn">Voltar</a>
 </div>
 
 {% for slot, oficinas in report.items() %}
