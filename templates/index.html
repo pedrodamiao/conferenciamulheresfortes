@@ -129,7 +129,7 @@
 
     {% for slot in slots %}
       <fieldset class="slot">
-        <legend>{{ loop.index }}º Horário</legend>
+        <legend>{{ loop.index }}º Horário — {{ slot.hora }}</legend>
         <div class="oficinas">
           {% for w in workshops %}
             {% if w["name"] not in slot.bloqueadas %}
