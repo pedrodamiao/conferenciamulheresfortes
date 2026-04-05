@@ -83,10 +83,10 @@ def index():
     cur = conn.cursor()
 
     slots = [
-        {"id": 1, "hora": "14h", "bloqueadas": ["COMO SE FORTALECER ESPIRITUALMENTE", "FORTALECIDA NA PALAVRA"]},
-        {"id": 2, "hora": "15:50h", "bloqueadas": ["VENCENDO A MENTIRA COM A VERDADE", "COMO CUIDAR DO CORPO"]},
-        {"id": 3, "hora": "19h", "bloqueadas": ["RAÍZES QUE PRECISAM SER ARRANCADAS"]},
-        {"id": 4, "hora": "20:50h", "bloqueadas": ["REGULANDO AS EMOÇÕES", "COMO VENCER A AUTOSSABOTAGEM"]},
+        {"id": 1, "hora": "9h", "bloqueadas": ["COMO SE FORTALECER ESPIRITUALMENTE", "FORTALECIDA NA PALAVRA"]},
+        {"id": 2, "hora": "10:40h", "bloqueadas": ["VENCENDO A MENTIRA COM A VERDADE", "COMO CUIDAR DO CORPO"]},
+        {"id": 3, "hora": "14h", "bloqueadas": ["RAÍZES QUE PRECISAM SER ARRANCADAS"]},
+        {"id": 4, "hora": "15:40h", "bloqueadas": ["REGULANDO AS EMOÇÕES", "COMO VENCER A AUTOSSABOTAGEM"]},
     ]
 
     cur.execute("SELECT * FROM workshops")
@@ -390,10 +390,10 @@ def reports():
         people.append(data)
 
     slots = [
-        {"id": 1, "hora": "14h"},
-        {"id": 2, "hora": "15:50h"},
-        {"id": 3, "hora": "19h"},
-        {"id": 4, "hora": "20:50h"},
+        {"id": 1, "hora": "9h"},
+        {"id": 2, "hora": "10:40h"},
+        {"id": 3, "hora": "14h"},
+        {"id": 4, "hora": "15:40h"},
     ]
 
     conn.close()
@@ -413,10 +413,10 @@ def reports_by_workshop():
     workshops_map = {r["id"]: r["name"] for r in cur.fetchall()}
 
     slots_map = {
-        "1": "14h",
-        "2": "15:50h",
-        "3": "19h",
-        "4": "20:50h"
+        "1": "9h",
+        "2": "10:40h",
+        "3": "14h",
+        "4": "15:40h"
     }
 
     report = {}
