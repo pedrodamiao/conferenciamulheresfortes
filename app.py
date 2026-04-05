@@ -172,10 +172,10 @@ def inscrever():
             count_map[key] = count_map.get(key, 0) + 1
 
     slots_map = {
-        "1": "14h",
-        "2": "15:50h",
-        "3": "19h",
-        "4": "20:50h"
+        "1": "9h",
+        "2": "10:40h",
+        "3": "14h",
+        "4": "15:40h"
     }
 
     # VALIDAÇÃO POR HORÁRIO
