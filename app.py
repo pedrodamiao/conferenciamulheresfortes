@@ -209,13 +209,14 @@ def inscrever():
         name = cur.fetchone()["name"]
 
         selected_data.append({
+            "slot": int(slot),
             "horario": slots_map[slot],
             "oficina": name
         })
 
     conn.close()
 
-    selected_data = sorted(selected_data, key=lambda x: x["horario"])
+    selected_data = sorted(selected_data, key=lambda x: x["slot"])
 
     session["last_registration"] = {
         "nome": full_name,
